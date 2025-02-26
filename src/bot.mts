@@ -80,3 +80,7 @@ bot.on('message', async (message) => {
     console.error(error);
   }
 });
+
+bot.on('error', (error) => {
+  console.error('Bot error:', error);
+});
