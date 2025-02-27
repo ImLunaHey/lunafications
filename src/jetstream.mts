@@ -2,7 +2,7 @@ import { Jetstream } from '@skyware/jetstream';
 import { addMessage } from './queue.mts';
 import { db } from './db/index.mts';
 import { RichText } from '@skyware/bot';
-import { TimeCache } from './time-cache.ts';
+import { TimeCache } from './time-cache.mts';
 import { BskyAgent } from '@atproto/api';
 
 const publicAgent = new BskyAgent({
