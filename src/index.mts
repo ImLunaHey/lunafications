@@ -10,6 +10,12 @@ const password = process.env.BSKY_PASSWORD;
 
 const processQueue = async () => {
   const queues = getQueueNames();
+  if (queues.length === 0) {
+    setTimeout(processQueue, 30_000);
+    return;
+  }
+
+  console.info(`Processing ${queues.length} queues...`);
 
   for (const queue of queues) {
     const messages = getMessages(queue);
