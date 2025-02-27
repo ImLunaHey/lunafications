@@ -1,8 +1,8 @@
-export class TimeCache {
+export class TimeCache<T = string> {
   cache: Map<
     string,
     {
-      value: string;
+      value: T;
       time: number;
     }
   >;
@@ -21,7 +21,7 @@ export class TimeCache {
     return entry.value;
   }
 
-  set(key: string, value: string) {
+  set(key: string, value: T) {
     this.cache.set(key, { value, time: Date.now() });
   }
 }
