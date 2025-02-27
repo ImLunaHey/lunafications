@@ -49,13 +49,14 @@ export const messagesToRichText = async (messages: Message[]): Promise<RichText>
     const handle = await resolveDidToHandle(message.did);
     switch (message.type) {
       case 'blocked':
-        richText.addText('You were blocked by ').addMention(handle, message.did);
+        richText.addText('\n').addText('You were blocked by ').addMention(handle, message.did);
         break;
       case 'list': {
         const list = await fetchListDetails(message.list);
         const listType = resolveListPurposeToType(list.purpose);
 
         richText
+          .addText('\n')
           .addMention(handle, message.did)
           .addText(` has added you to the "`)
           .addLink(list.name, `https://bsky.app/profile/${message.did}/lists/${message.list}`)
