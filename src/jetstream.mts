@@ -60,6 +60,10 @@ jetstream.on('app.bsky.graph.listitem', async (event) => {
     // account who was added to the list
     const subject = event.commit.record.subject;
 
+    // check if the account wants to receive block notifications
+    const settings = await db.selectFrom('settings').selectAll().where('did', '=', subject).executeTakeFirst();
+    if (!settings?.lists) return;
+
     // name of the list
     const list = await getListName(event.commit.record.list);
 
