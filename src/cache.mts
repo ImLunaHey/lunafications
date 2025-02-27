@@ -35,13 +35,13 @@ const listDetailsCache = new TimeCache<ListView>(ONE_MINUTE);
  * @param list The list ID.
  * @returns The name of the list.
  */
-export const fetchListDetails = async (listId: string) => {
+export const fetchListDetails = async (did: string, listId: string) => {
   const cacheList = listDetailsCache.get(listId);
   if (cacheList) return cacheList;
 
   const list = await publicAgent.app.bsky.graph
     .getList({
-      list: listId,
+      list: `at://${did}/app.bsky.graph.list/${listId}`,
     })
     .then((list) => list.data.list);
   listDetailsCache.set(listId, list);

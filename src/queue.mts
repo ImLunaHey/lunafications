@@ -46,17 +46,20 @@ const resolveListPurposeToType = (purpose: ListPurpose): 'moderation list' | 'st
 export const messagesToRichText = async (messages: Message[]): Promise<RichText> => {
   const richText = new RichText();
   for (const message of messages) {
+    const index = messages.indexOf(message);
     const handle = await resolveDidToHandle(message.did);
+    if (index > 0) {
+      richText.addText('\n');
+    }
     switch (message.type) {
       case 'blocked':
-        richText.addText('\n').addText('You were blocked by ').addMention(handle, message.did);
+        richText.addText('You were blocked by ').addMention(handle, message.did);
         break;
       case 'list': {
-        const list = await fetchListDetails(message.list);
+        const list = await fetchListDetails(message.did, message.list);
         const listType = resolveListPurposeToType(list.purpose);
 
         richText
-          .addText('\n')
           .addMention(handle, message.did)
           .addText(` has added you to the "`)
           .addLink(list.name, `https://bsky.app/profile/${message.did}/lists/${message.list}`)
