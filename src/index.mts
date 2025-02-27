@@ -15,8 +15,6 @@ const processQueue = async () => {
     return;
   }
 
-  console.info(`Processing ${queues.length} queues...`);
-
   for (const queue of queues) {
     const messages = getMessages(queue);
     if (messages.length === 0) continue;
