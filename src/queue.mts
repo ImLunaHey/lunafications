@@ -27,7 +27,22 @@ type ListMessage = {
   did: `did:${string}`;
 };
 
-type Message = BlockedMessage | ListMessage;
+type UserPostMessage = {
+  /**
+   * The type of message.
+   */
+  type: 'post';
+  /**
+   * The DID of the account that made the post.
+   */
+  did: `did:${string}`;
+  /**
+   * The post ID.
+   */
+  post: string;
+};
+
+type Message = BlockedMessage | ListMessage | UserPostMessage;
 
 const resolveListPurposeToType = (purpose: ListPurpose): 'moderation list' | 'starter pack' | 'feed' => {
   switch (purpose) {
@@ -64,6 +79,14 @@ export const messagesToRichText = async (messages: Message[]): Promise<RichText>
           .addText(` has added you to the "`)
           .addLink(list.name, `https://bsky.app/profile/${message.did}/lists/${message.list}`)
           .addText(`" ${listType}.`);
+        break;
+      }
+      case 'post': {
+        richText
+          .addMention(handle, message.did)
+          .addText(` has `)
+          .addLink('made a post', `https://bsky.app/profile/${message.did}/post/${message.post}`)
+          .addText('.');
         break;
       }
     }

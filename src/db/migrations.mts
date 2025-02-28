@@ -21,3 +21,15 @@ migrations['001'] = {
     await db.schema.dropTable('settings').execute();
   },
 };
+
+migrations['002'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('settings')
+      .addColumn('users', 'text', (col) => col.notNull().defaultTo(''))
+      .execute();
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('settings').execute();
+  },
+};

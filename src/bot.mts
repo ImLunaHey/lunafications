@@ -7,8 +7,10 @@ function bigIntReplacer(_key: string, value: any): any {
   return typeof value === 'bigint' ? value.toString() : value;
 }
 
-const createReply = async (sender: Profile, message: ChatMessage) => {
-  switch (message.text) {
+export const createReply = async (sender: Profile, message: ChatMessage) => {
+  const [command = '', subCommand = '', ...props] = message.text.toLowerCase().split(' ');
+  const fullCommand = `${command} ${subCommand}`.trim();
+  switch (fullCommand) {
     case 'menu': {
       return (
         "Thanks for messaging me! I can notify you when you're blocked or added to lists.\n\n" +
@@ -17,13 +19,14 @@ const createReply = async (sender: Profile, message: ChatMessage) => {
         "- 'notify lists': Get notified when you're added to lists\n" +
         "- 'notify all': Get all notifications\n" +
         "- 'notify none': Turn off all notifications" +
+        "- 'notify posts @imlunahey.com': Get notified when a specific user makes a post\n" +
         "- 'settings': View your current notification settings"
       );
     }
     case 'notify blocks': {
       const result = await db
         .insertInto('settings')
-        .values({ did: sender.did, blocks: 1, lists: 0 })
+        .values({ did: sender.did, blocks: 1, lists: 0, users: '' })
         .onConflict((builder) => builder.doUpdateSet({ blocks: 1 }))
         .executeTakeFirst();
       console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
@@ -32,7 +35,7 @@ const createReply = async (sender: Profile, message: ChatMessage) => {
     case 'notify lists': {
       const result = await db
         .insertInto('settings')
-        .values({ did: sender.did, blocks: 0, lists: 1 })
+        .values({ did: sender.did, blocks: 0, lists: 1, users: '' })
         .onConflict((builder) => builder.doUpdateSet({ lists: 1 }))
         .executeTakeFirst();
       console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
@@ -41,11 +44,26 @@ const createReply = async (sender: Profile, message: ChatMessage) => {
     case 'notify all': {
       const result = await db
         .insertInto('settings')
-        .values({ did: sender.did, blocks: 1, lists: 1 })
+        .values({ did: sender.did, blocks: 1, lists: 1, users: '' })
         .onConflict((builder) => builder.doUpdateSet({ blocks: 1, lists: 1 }))
         .executeTakeFirst();
       console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
       return "You'll now receive all notifications.";
+    }
+    case 'notify posts': {
+      const [handle = ''] = props;
+      if (!handle) return 'Please provide a handle you want to monitor, e.g. "notify posts @imlunakey.com".';
+      const currentSettings = await db.selectFrom('settings').selectAll().where('did', '=', sender.did).executeTakeFirst();
+      const existingUsers = currentSettings?.users || '';
+      const updatedUsers = existingUsers ? `${existingUsers},${handle}` : handle;
+
+      const result = await db
+        .insertInto('settings')
+        .values({ did: sender.did, blocks: 0, lists: 0, users: updatedUsers })
+        .onConflict((builder) => builder.doUpdateSet({ users: updatedUsers }))
+        .executeTakeFirst();
+      console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
+      return `You will be notified when ${handle} makes a post.`;
     }
     case 'notify none': {
       const result = await db.deleteFrom('settings').where('did', '=', sender.did).executeTakeFirst();

@@ -11,6 +11,10 @@ export type Settings = {
    * Whether the user has list notifications enabled
    */
   lists: 1 | 0;
+  /**
+   * CSV list of DIDs that belong to accounts this user wants to be notified about
+   */
+  users: string;
 };
 
 export type DatabaseSchema = {
