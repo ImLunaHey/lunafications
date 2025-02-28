@@ -1,6 +1,9 @@
 import { ChatMessage, Profile } from '@skyware/bot';
 import { createReply } from './bot.mts';
 import { test, expect } from 'vitest';
+import { db, migrateToLatest } from './db/index.mts';
+
+await migrateToLatest(db);
 
 test('createReply (menu)', async () => {
   const sender = { did: '123' } as unknown as Profile;
