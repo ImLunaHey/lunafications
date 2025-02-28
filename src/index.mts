@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { IncomingChatPreference } from '@skyware/bot';
 import { bot } from './bot.mts';
-import { getMessages, getQueueNames } from './queue.mts';
+import { getMessages, getQueueNames, messagesToRichText } from './queue.mts';
 import { jetstream } from './jetstream.mts';
 import { db, migrateToLatest } from './db/index.mts';
 
@@ -23,7 +23,7 @@ const processQueue = async () => {
     for (const message of messages) {
       try {
         const conversation = await bot.getConversationForMembers([queue]);
-        await conversation.sendMessage({ text: message });
+        await conversation.sendMessage({ text: await messagesToRichText([message]) });
       } catch (error) {
         console.error(`Failed to send message to ${queue}:`, error);
       }
