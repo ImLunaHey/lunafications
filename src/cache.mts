@@ -19,6 +19,12 @@ export const resolveDidToHandle = async (did: string): Promise<string> => {
   const cachedHandle = handleCache.get(did);
   if (cachedHandle) return cachedHandle;
 
+  if (did.startsWith('did:web:')) {
+    const handle = did.split('did:web:')[1];
+    handleCache.set(did, handle);
+    return handle;
+  }
+
   const handle = await fetch(`https://plc.directory/${did}`)
     .then((res) => res.json())
     .then((data) => data.alsoKnownAs[0].split('at://')[1]);
