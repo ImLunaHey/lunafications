@@ -27,7 +27,7 @@ jobs:
         run: npm install
 
       - name: Run tests with coverage
-        run: npm coverage
+        run: npm run coverage
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
