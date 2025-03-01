@@ -59,18 +59,18 @@ export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed
     const id = event.commit.cid;
 
     // account who made the post
-    const did = event.did;
+    const from = event.did;
 
     // check who wants to receive post notifications about this account
-    const settings = await db.selectFrom('settings').selectAll().where('users', 'like', did).execute();
-    if (settings.length === 0) return;
+    const accountsToNotify = await db.selectFrom('post_notifications').select('did').where('from', '=', from).execute();
+    if (accountsToNotify.length === 0) return;
 
-    for (const setting of settings) {
+    for (const accounts of accountsToNotify) {
       // add message to the queue
-      addMessage(setting.did, {
+      addMessage(accounts.did, {
         type: 'post',
         post: id,
-        did,
+        did: from,
       });
     }
   } catch (error) {

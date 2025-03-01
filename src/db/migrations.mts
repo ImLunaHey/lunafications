@@ -25,11 +25,16 @@ migrations['001'] = {
 migrations['002'] = {
   async up(db: Kysely<unknown>) {
     await db.schema
-      .alterTable('settings')
-      .addColumn('users', 'text', (col) => col.notNull().defaultTo(''))
+      .createTable('post_notifications')
+      .addColumn('did', 'varchar', (col) => col.notNull())
+      .addColumn('from', 'varchar', (col) => col.notNull())
+      .addUniqueConstraint('unique_user_from', ['did', 'from'])
       .execute();
+
+    await db.schema.createIndex('idx_did').on('post_notifications').column('did').execute();
+    await db.schema.createIndex('idx_from').on('post_notifications').column('from').execute();
   },
   async down(db: Kysely<unknown>) {
-    await db.schema.dropTable('settings').execute();
+    await db.schema.dropTable('post_notifications').execute();
   },
 };

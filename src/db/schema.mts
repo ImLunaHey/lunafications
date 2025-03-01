@@ -11,12 +11,20 @@ export type Settings = {
    * Whether the user has list notifications enabled
    */
   lists: 1 | 0;
+};
+
+export type PostNotifications = {
   /**
-   * CSV list of DIDs that belong to accounts this user wants to be notified about
+   * DID of the user
    */
-  users: string;
+  did: string;
+  /**
+   * DID of the user that the user wants to be notified about
+   */
+  from: string;
 };
 
 export type DatabaseSchema = {
   settings: Settings;
+  post_notifications: PostNotifications;
 };
