@@ -5,7 +5,8 @@
   "scripts": {
     "start": "npx tsx ./src/index.mts",
     "test": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "coverage:watch": "vitest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.0.7",
+    "@vitest/ui": "^3.0.7",
     "outdent": "^0.8.0",
     "tsx": "^4.19.3",
     "vitest": "^3.0.7"
