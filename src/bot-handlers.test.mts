@@ -24,8 +24,11 @@ test('chatMessageHandler', async () => {
     - 'notify blocks': Get notified when someone blocks you
     - 'notify lists': Get notified when you're added to lists
     - 'notify all': Get all notifications
-    - 'notify none': Turn off all notifications
     - 'notify posts @imlunahey.com': Get notified when a specific user makes a post
+    - 'hide blocks': Turn off block notifications
+    - 'hide lists': Turn off list notifications
+    - 'hide posts @imlunahey.com': Stop monitoring a specific user's posts
+    - 'hide all': Turn off all notifications
     - 'settings': View your current notification settings
   `);
 });
