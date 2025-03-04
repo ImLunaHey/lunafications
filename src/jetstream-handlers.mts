@@ -56,7 +56,7 @@ export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed
     if (event.commit.operation !== 'create') return;
 
     // id of the post
-    const id = event.commit.cid;
+    const id = event.commit.rkey;
 
     // account who made the post
     const from = event.did;
@@ -74,6 +74,6 @@ export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed
       });
     }
   } catch (error) {
-    console.error('Failed to process list event:', error);
+    console.error('Failed to process post event:', error);
   }
 };
