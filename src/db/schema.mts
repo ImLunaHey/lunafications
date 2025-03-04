@@ -13,6 +13,18 @@ export type Settings = {
   lists: 1 | 0;
 };
 
+export type PostNotifications = {
+  /**
+   * DID of the user
+   */
+  did: string;
+  /**
+   * DID of the user that the user wants to be notified about
+   */
+  from: string;
+};
+
 export type DatabaseSchema = {
   settings: Settings;
+  post_notifications: PostNotifications;
 };

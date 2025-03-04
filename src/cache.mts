@@ -1,10 +1,6 @@
 import { ListView } from '@atproto/api/dist/client/types/app/bsky/graph/defs.js';
 import { TimeCache } from './time-cache.mts';
-import { BskyAgent } from '@atproto/api';
-
-const publicAgent = new BskyAgent({
-  service: 'https://public.api.bsky.app',
-});
+import { publicAgent, authedAgent } from './common/agents.mts';
 
 const ONE_MINUTE = 60_000;
 
@@ -52,4 +48,32 @@ export const fetchListDetails = async (did: string, listId: string) => {
     .then((list) => list.data.list);
   listDetailsCache.set(listId, list);
   return list;
+};
+
+const didCache = new TimeCache<string>(ONE_MINUTE);
+
+/**
+ * Resolves a handle to a DID.
+ * @param actor The handle to resolve.
+ * @returns The DID of the handle.
+ */
+export const resolveHandleToDid = async (_handle: string) => {
+  try {
+    const handle = _handle.trim().replace('@', '');
+    const cachedDid = didCache.get(handle);
+    if (cachedDid) return cachedDid;
+
+    console.info(`Fetching profile for ${handle}`);
+    const did = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${handle}`)
+      .then((res) => res.json())
+      .then((data) => data.did);
+    didCache.set(handle, did);
+
+    console.info(`Resolved ${handle} to ${did}`);
+
+    return did;
+  } catch (error) {
+    console.error('Failed to resolve handle to DID:', error);
+    return null;
+  }
 };
