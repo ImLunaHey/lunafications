@@ -1,10 +1,6 @@
 import { ListView } from '@atproto/api/dist/client/types/app/bsky/graph/defs.js';
 import { TimeCache } from './time-cache.mts';
-import { BskyAgent } from '@atproto/api';
-
-const publicAgent = new BskyAgent({
-  service: 'https://public.api.bsky.app',
-});
+import { publicAgent, authedAgent } from './common/agents.mts';
 
 const ONE_MINUTE = 60_000;
 
@@ -52,4 +48,21 @@ export const fetchListDetails = async (did: string, listId: string) => {
     .then((list) => list.data.list);
   listDetailsCache.set(listId, list);
   return list;
+};
+
+const didCache = new TimeCache<string>(ONE_MINUTE);
+
+/**
+ * Resolves a handle to a DID.
+ * @param actor The handle to resolve.
+ * @returns The DID of the handle.
+ */
+export const resolveHandleToDid = async (handle: string) => {
+  const cachedDid = didCache.get(handle);
+  if (cachedDid) return cachedDid;
+
+  console.info(`Fetching profile for ${handle}`);
+  const did = await authedAgent.com.atproto.identity.resolveHandle({ handle }).then((res) => res.data.did);
+  didCache.set(handle, did);
+  return did;
 };

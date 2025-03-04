@@ -1,5 +1,6 @@
 import { Profile, ChatMessage } from '@skyware/bot';
 import { db } from '../db/index.mts';
+import { resolveHandleToDid } from '../cache.mts';
 
 function bigIntReplacer(_key: string, value: any): any {
   return typeof value === 'bigint' ? value.toString() : value;
@@ -24,7 +25,7 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
     case 'notify blocks': {
       const result = await db
         .insertInto('settings')
-        .values({ did: sender.did, blocks: 1, lists: 0, users: '' })
+        .values({ did: sender.did, blocks: 1, lists: 0 })
         .onConflict((builder) => builder.doUpdateSet({ blocks: 1 }))
         .executeTakeFirst();
       console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
@@ -33,7 +34,7 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
     case 'notify lists': {
       const result = await db
         .insertInto('settings')
-        .values({ did: sender.did, blocks: 0, lists: 1, users: '' })
+        .values({ did: sender.did, blocks: 0, lists: 1 })
         .onConflict((builder) => builder.doUpdateSet({ lists: 1 }))
         .executeTakeFirst();
       console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
@@ -42,7 +43,7 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
     case 'notify all': {
       const result = await db
         .insertInto('settings')
-        .values({ did: sender.did, blocks: 1, lists: 1, users: '' })
+        .values({ did: sender.did, blocks: 1, lists: 1 })
         .onConflict((builder) => builder.doUpdateSet({ blocks: 1, lists: 1 }))
         .executeTakeFirst();
       console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
@@ -51,16 +52,17 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
     case 'notify posts': {
       const [handle = ''] = props;
       if (!handle) return 'Please provide a handle you want to monitor, e.g. "notify posts @imlunakey.com".';
-      const currentSettings = await db.selectFrom('settings').selectAll().where('did', '=', sender.did).executeTakeFirst();
-      const existingUsers = currentSettings?.users || '';
-      const updatedUsers = existingUsers ? `${existingUsers},${handle}` : handle;
+
+      const from = await resolveHandleToDid(handle.replace('@', ''));
+      if (!from) return `Could not find a user with the handle ${handle}.`;
 
       const result = await db
-        .insertInto('settings')
-        .values({ did: sender.did, blocks: 0, lists: 0, users: updatedUsers })
-        .onConflict((builder) => builder.doUpdateSet({ users: updatedUsers }))
+        .insertInto('post_notifications')
+        .values({ did: sender.did, from: from })
+        .onConflict((builder) => builder.doUpdateSet({ from: from }))
         .executeTakeFirst();
-      console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
+
+      console.info(`Updated post notifications for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
       return `You will be notified when ${handle} makes a post.`;
     }
     case 'notify none': {

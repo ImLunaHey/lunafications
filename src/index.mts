@@ -1,37 +1,16 @@
 import 'dotenv/config';
 import { IncomingChatPreference } from '@skyware/bot';
 import { bot } from './bot.mts';
-import { getMessages, getQueueNames, messagesToRichText } from './queue.mts';
 import { jetstream } from './jetstream.mts';
 import { db, migrateToLatest } from './db/index.mts';
+import { processQueue } from './common/process-queue.mts';
+import { updateBio } from './common/update-bio.mts';
 
 const username = process.env.BSKY_USERNAME;
 const password = process.env.BSKY_PASSWORD;
 
-const processQueue = async () => {
-  const queues = getQueueNames();
-  if (queues.length === 0) {
-    setTimeout(processQueue, 30_000);
-    return;
-  }
-
-  for (const queue of queues) {
-    const messages = getMessages(queue);
-    if (messages.length === 0) continue;
-    console.info(`Sending ${messages.length} messages for queue ${queue}`);
-
-    for (const message of messages) {
-      try {
-        const conversation = await bot.getConversationForMembers([queue]);
-        await conversation.sendMessage({ text: await messagesToRichText([message]) });
-      } catch (error) {
-        console.error(`Failed to send message to ${queue}:`, error);
-      }
-    }
-  }
-
-  setTimeout(processQueue, 30_000);
-};
+const THIRTY_SECONDS = 30_000;
+const TEN_MINUTES = 600_000;
 
 const main = async () => {
   if (!username || !password) {
@@ -54,7 +33,8 @@ const main = async () => {
 
   jetstream.start();
 
-  setTimeout(processQueue, 30_000);
+  setTimeout(processQueue, THIRTY_SECONDS);
+  setTimeout(updateBio, TEN_MINUTES);
 };
 
 main().catch(console.error);
