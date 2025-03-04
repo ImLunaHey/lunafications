@@ -61,6 +61,9 @@ export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed
     // account who made the post
     const from = event.did;
 
+    // check that this is a top post and not a reply
+    if (event.commit.record.reply) return;
+
     // check who wants to receive post notifications about this account
     const accountsToNotify = await db.selectFrom('post_notifications').select('did').where('from', '=', from).execute();
     if (accountsToNotify.length === 0) return;
