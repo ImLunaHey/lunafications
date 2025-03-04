@@ -2,6 +2,8 @@ import { outdent } from 'outdent';
 import { db } from '../db/index.mts';
 import { authedAgent } from './agents.mts';
 
+const TEN_MINUTES = 600_000;
+
 export const updateBio = async () => {
   await authedAgent.upsertProfile(async (existingProfile) => {
     const existing = existingProfile!;
@@ -21,4 +23,6 @@ export const updateBio = async () => {
 
     return existing;
   });
+
+  setTimeout(updateBio, TEN_MINUTES);
 };
