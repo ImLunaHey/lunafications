@@ -46,16 +46,9 @@ test('createReply (notify all)', async () => {
   expect(reply).toBe(`You'll now receive all notifications.`);
 });
 
-test('createReply (notify none)', async () => {
+test('createReply (hide all)', async () => {
   const sender = { did } as unknown as Profile;
-  const message = { text: 'notify none' } as unknown as ChatMessage;
-  const reply = await createReply(sender, message);
-  expect(reply).toBe(`You'll no longer receive any notifications.`);
-});
-
-test('createReply (notify none)', async () => {
-  const sender = { did } as unknown as Profile;
-  const message = { text: 'notify none' } as unknown as ChatMessage;
+  const message = { text: 'hide all' } as unknown as ChatMessage;
   const reply = await createReply(sender, message);
   expect(reply).toBe(`You'll no longer receive any notifications.`);
 });
