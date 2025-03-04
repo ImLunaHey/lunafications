@@ -8,7 +8,9 @@ export const authedAgent = new BskyAgent({
   service: 'https://api.bsky.app',
 });
 
-void authedAgent.login({
-  identifier: process.env.BSKY_USERNAME!,
-  password: process.env.BSKY_PASSWORD!,
-});
+if (process.env.BSKY_USERNAME && process.env.BSKY_PASSWORD) {
+  void authedAgent.login({
+    identifier: process.env.BSKY_USERNAME!,
+    password: process.env.BSKY_PASSWORD!,
+  });
+}

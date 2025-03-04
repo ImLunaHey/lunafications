@@ -57,12 +57,23 @@ const didCache = new TimeCache<string>(ONE_MINUTE);
  * @param actor The handle to resolve.
  * @returns The DID of the handle.
  */
-export const resolveHandleToDid = async (handle: string) => {
-  const cachedDid = didCache.get(handle);
-  if (cachedDid) return cachedDid;
+export const resolveHandleToDid = async (_handle: string) => {
+  try {
+    const handle = _handle.trim().replace('@', '');
+    const cachedDid = didCache.get(handle);
+    if (cachedDid) return cachedDid;
 
-  console.info(`Fetching profile for ${handle}`);
-  const did = await authedAgent.com.atproto.identity.resolveHandle({ handle }).then((res) => res.data.did);
-  didCache.set(handle, did);
-  return did;
+    console.info(`Fetching profile for ${handle}`);
+    const did = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${handle}`)
+      .then((res) => res.json())
+      .then((data) => data.did);
+    didCache.set(handle, did);
+
+    console.info(`Resolved ${handle} to ${did}`);
+
+    return did;
+  } catch (error) {
+    console.error('Failed to resolve handle to DID:', error);
+    return null;
+  }
 };

@@ -53,7 +53,7 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
       const [handle = ''] = props;
       if (!handle) return 'Please provide a handle you want to monitor, e.g. "notify posts @imlunakey.com".';
 
-      const from = await resolveHandleToDid(handle.replace('@', ''));
+      const from = await resolveHandleToDid(handle);
       if (!from) return `Could not find a user with the handle ${handle}.`;
 
       const result = await db

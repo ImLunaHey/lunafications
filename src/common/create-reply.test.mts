@@ -67,9 +67,16 @@ test('createReply (settings)', async () => {
 
 test('createReply (notify posts @imlunahey.com)', async () => {
   const sender = { did } as unknown as Profile;
-  const message = { text: 'notify posts @imlunakey.com' } as unknown as ChatMessage;
+  const message = { text: 'notify posts @imlunahey.com' } as unknown as ChatMessage;
   const reply = await createReply(sender, message);
-  expect(reply).toBe(`You will be notified when @imlunakey.com makes a post.`);
+  expect(reply).toBe(`You will be notified when @imlunahey.com makes a post.`);
+});
+
+test('createReply (notify posts @i-am-an-invalid-domain.tld)', async () => {
+  const sender = { did } as unknown as Profile;
+  const message = { text: 'notify posts @i-am-an-invalid-domain.tld' } as unknown as ChatMessage;
+  const reply = await createReply(sender, message);
+  expect(reply).toBe(`Could not find a user with the handle @i-am-an-invalid-domain.tld.`);
 });
 
 test('createReply (default reply)', async () => {
