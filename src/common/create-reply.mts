@@ -1,6 +1,7 @@
 import { Profile, ChatMessage } from '@skyware/bot';
 import { db } from '../db/index.mts';
 import { resolveHandleToDid } from '../cache.mts';
+import { outdent } from 'outdent';
 
 function bigIntReplacer(_key: string, value: any): any {
   return typeof value === 'bigint' ? value.toString() : value;
@@ -11,16 +12,17 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
   const fullCommand = `${command} ${subCommand}`.trim();
   switch (fullCommand) {
     case 'menu': {
-      return (
-        "Thanks for messaging me! I can notify you when you're blocked or added to lists.\n\n" +
-        'Reply with one of the following options:\n' +
-        "- 'notify blocks': Get notified when someone blocks you\n" +
-        "- 'notify lists': Get notified when you're added to lists\n" +
-        "- 'notify all': Get all notifications\n" +
-        "- 'notify none': Turn off all notifications" +
-        "- 'notify posts @imlunahey.com': Get notified when a specific user makes a post\n" +
-        "- 'settings': View your current notification settings"
-      );
+      return outdent`
+        Thanks for messaging me! I can notify you when you're blocked or added to lists.
+
+        Reply with one of the following options:
+        - 'notify blocks': Get notified when someone blocks you
+        - 'notify lists': Get notified when you're added to lists
+        - 'notify all': Get all notifications
+        - 'notify none': Turn off all notifications
+        - 'notify posts @imlunahey.com': Get notified when a specific user makes a post
+        - 'settings': View your current notification settings
+      `;
     }
     case 'notify blocks': {
       const result = await db
