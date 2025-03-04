@@ -60,7 +60,12 @@ test('createReply (settings)', async () => {
   const sender = { did } as unknown as Profile;
   const message = { text: 'settings' } as unknown as ChatMessage;
   const reply = await createReply(sender, message);
-  expect(reply).toBe('Your current settings:\n- Notify blocks: off\n- Notify lists: off');
+  expect(reply).toBe(outdent`
+    Your current settings:
+    - Notify blocks: off
+    - Notify lists: off
+    - Notify posts: none
+  `);
 });
 
 test('createReply (notify posts @imlunahey.com)', async () => {

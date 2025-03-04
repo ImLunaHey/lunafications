@@ -103,9 +103,22 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
     case 'settings': {
       const settings = await db.selectFrom('settings').selectAll().where('did', '=', sender.did).executeTakeFirst();
       console.info(`Got settings for ${sender.did}: ${JSON.stringify(settings, bigIntReplacer)}`);
-      return `Your current settings:\n- Notify blocks: ${settings?.blocks === 1 ? 'on' : 'off'}\n- Notify lists: ${
-        settings?.lists === 1 ? 'on' : 'off'
-      }`;
+
+      const postNotifications = await db
+        .selectFrom('post_notifications')
+        .selectAll()
+        .where('did', '=', sender.did)
+        .execute();
+      console.info(`Got post notifications for ${sender.did}: ${JSON.stringify(postNotifications, bigIntReplacer)}`);
+
+      return outdent`
+        Your current settings:
+        - Notify blocks: ${settings?.blocks === 1 ? 'on' : 'off'}
+        - Notify lists: ${settings?.lists === 1 ? 'on' : 'off'}
+        - Notify posts: ${
+          postNotifications.length ? postNotifications.map((notification) => notification.from).join(', ') : 'none'
+        }
+      `;
     }
     default: {
       return 'I did not understand that. Please reply with "menu" to see the available options.';
