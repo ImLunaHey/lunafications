@@ -5,7 +5,7 @@ export const publicAgent = new BskyAgent({
 });
 
 export const authedAgent = new BskyAgent({
-  service: 'https://api.bsky.app',
+  service: 'https://bsky.social',
 });
 
 if (process.env.BSKY_USERNAME && process.env.BSKY_PASSWORD) {

@@ -1,4 +1,4 @@
-import outdent from 'outdent';
+import { outdent } from 'outdent';
 import { db } from '../db/index.mts';
 import { authedAgent } from './agents.mts';
 
