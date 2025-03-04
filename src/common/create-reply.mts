@@ -67,7 +67,32 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
       console.info(`Updated post notifications for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
       return `You will be notified when ${handle} makes a post.`;
     }
-    case 'notify none': {
+    case 'hide blocks': {
+      const result = await db.updateTable('settings').set({ blocks: 0 }).where('did', '=', sender.did).executeTakeFirst();
+      console.info(`Deleted settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
+      return "You'll no longer receive block notifications.";
+    }
+    case 'hide lists': {
+      const result = await db.updateTable('settings').set({ lists: 0 }).where('did', '=', sender.did).executeTakeFirst();
+      console.info(`Deleted settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
+      return "You'll no longer receive list notifications.";
+    }
+    case 'hide posts': {
+      const [handle = ''] = props;
+      if (!handle) return 'Please provide a handle you want to stop monitoring, e.g. "disable posts @imlunakey.com".';
+
+      const from = await resolveHandleToDid(handle);
+      if (!from) return `Could not find a user with the handle ${handle}.`;
+
+      const result = await db
+        .deleteFrom('post_notifications')
+        .where('did', '=', sender.did)
+        .where('from', '=', from)
+        .executeTakeFirst();
+      console.info(`Deleted post notifications for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
+      return `You will no longer be notified when ${handle} makes a post.`;
+    }
+    case 'hide all': {
       const result = await db.deleteFrom('settings').where('did', '=', sender.did).executeTakeFirst();
       console.info(`Updated settings for ${sender.did}: ${JSON.stringify(result, bigIntReplacer)}`);
       return "You'll no longer receive any notifications.";
