@@ -43,7 +43,7 @@ export const jetstreamListItemHandler = async (event: CommitEvent<'app.bsky.grap
     // add message to the queue
     addMessage(subject, {
       type: 'list',
-      list: event.commit.record.list,
+      list: event.commit.record.list.split('/')[3],
       did,
     });
   } catch (error) {
