@@ -1,6 +1,7 @@
 import { CommitEvent } from '@skyware/jetstream';
 import { addMessage } from './queue.mts';
 import { db } from './db/index.mts';
+import { isExternal, isViewExternal } from '@atproto/api/dist/client/types/app/bsky/embed/external.js';
 
 export const jetstreamBlockHandler = async (event: CommitEvent<'app.bsky.graph.block'>) => {
   try {
@@ -51,7 +52,7 @@ export const jetstreamListItemHandler = async (event: CommitEvent<'app.bsky.grap
   }
 };
 
-export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed.post'>) => {
+const postNotificationHandler = async (event: CommitEvent<'app.bsky.feed.post'>) => {
   try {
     if (event.commit.operation !== 'create') return;
 
@@ -76,6 +77,60 @@ export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed
         did: from,
       });
     }
+  } catch (error) {
+    console.error('Failed to process post event:', error);
+  }
+};
+
+const domainNotificationHandler = async (event: CommitEvent<'app.bsky.feed.post'>) => {
+  try {
+    if (event.commit.operation !== 'create') return;
+
+    // id of the post
+    const id = event.commit.rkey;
+
+    // account who made the post
+    const from = event.did;
+
+    // extract urls from the post
+    const urlsFromText = event.commit.record.text.match(/https?:\/\/[^\s]+/g) ?? [];
+    const urlsFromEmbed =
+      event.commit.record.embed?.$type === 'app.bsky.embed.external' ? [event.commit.record.embed.external.uri] : [];
+    const urls = [...urlsFromText, ...urlsFromEmbed];
+    if (!urls) return;
+
+    // extract domains from the urls
+    const domains = urls.map((url) => {
+      const parsedUrl = new URL(url);
+      return parsedUrl.hostname;
+    });
+
+    // check who wants to receive notifications about these domains
+    const accountsToNotify = await db
+      .selectFrom('domain_notifications')
+      .select('did')
+      .where('domain', 'in', domains)
+      .execute();
+    if (accountsToNotify.length === 0) return;
+
+    for (const accounts of accountsToNotify) {
+      // add message to the queue
+      addMessage(accounts.did, {
+        type: 'domain',
+        post: id,
+        did: from,
+        domains: domains,
+        urls: urls,
+      });
+    }
+  } catch (error) {
+    console.error('Failed to process post event:', error);
+  }
+};
+
+export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed.post'>) => {
+  try {
+    await Promise.all([postNotificationHandler(event), domainNotificationHandler(event)]);
   } catch (error) {
     console.error('Failed to process post event:', error);
   }

@@ -38,3 +38,20 @@ migrations['002'] = {
     await db.schema.dropTable('post_notifications').execute();
   },
 };
+
+migrations['003'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('domain_notifications')
+      .addColumn('did', 'varchar', (col) => col.notNull())
+      .addColumn('domain', 'varchar', (col) => col.notNull())
+      .addUniqueConstraint('unique_user_domain', ['did', 'domain'])
+      .execute();
+
+    await db.schema.createIndex('idx_did').on('domain_notifications').column('did').execute();
+    await db.schema.createIndex('idx_domain').on('domain_notifications').column('domain').execute();
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('domain_notifications').execute();
+  },
+};

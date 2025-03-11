@@ -24,7 +24,19 @@ export type PostNotifications = {
   from: string;
 };
 
+export type DomainNotifications = {
+  /**
+   * DID of the user
+   */
+  did: string;
+  /**
+   * Domain that the user wants to be notified about
+   */
+  domain: string;
+};
+
 export type DatabaseSchema = {
   settings: Settings;
   post_notifications: PostNotifications;
+  domain_notifications: DomainNotifications;
 };

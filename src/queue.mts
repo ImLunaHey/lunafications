@@ -42,7 +42,30 @@ type UserPostMessage = {
   post: string;
 };
 
-type Message = BlockedMessage | ListMessage | UserPostMessage;
+type DomainMessage = {
+  /**
+   * The type of message.
+   */
+  type: 'domain';
+  /**
+   * The DID of the account that made the post.
+   */
+  did: `did:${string}`;
+  /**
+   * The post ID.
+   */
+  post: string;
+  /**
+   * Domains that were mentioned in the post.
+   */
+  domains: string[];
+  /**
+   * The full URLs of the domains.
+   */
+  urls: string[];
+};
+
+type Message = BlockedMessage | ListMessage | UserPostMessage | DomainMessage;
 
 const resolveListPurposeToType = (purpose: ListPurpose): 'moderation list' | 'starter pack' | 'feed' => {
   switch (purpose) {
@@ -62,15 +85,17 @@ export const messagesToRichText = async (messages: Message[]): Promise<RichText>
   const richText = new RichText();
   for (const message of messages) {
     const index = messages.indexOf(message);
-    const handle = await resolveDidToHandle(message.did);
     if (index > 0) {
       richText.addText('\n');
     }
     switch (message.type) {
-      case 'blocked':
+      case 'blocked': {
+        const handle = await resolveDidToHandle(message.did);
         richText.addText('You were blocked by ').addMention(handle, message.did);
         break;
+      }
       case 'list': {
+        const handle = await resolveDidToHandle(message.did);
         const list = await fetchListDetails(message.did, message.list);
         const listType = resolveListPurposeToType(list.purpose);
 
@@ -82,11 +107,25 @@ export const messagesToRichText = async (messages: Message[]): Promise<RichText>
         break;
       }
       case 'post': {
+        const handle = await resolveDidToHandle(message.did);
         richText
           .addMention(handle, message.did)
           .addText(` has `)
           .addLink('made a post', `https://bsky.app/profile/${message.did}/post/${message.post}`)
           .addText('.');
+        break;
+      }
+      case 'domain': {
+        const handle = await resolveDidToHandle(message.did);
+        richText
+          .addMention(handle, message.did)
+          .addText(` has `)
+          .addLink('made a post', `https://bsky.app/profile/${message.did}/post/${message.post}`)
+          .addText(` that contains a link to `);
+        for (const url of message.urls) {
+          richText.addLink(url, url).addText(', ');
+        }
+        richText.addText('.');
         break;
       }
     }
