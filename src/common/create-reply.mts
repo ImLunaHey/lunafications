@@ -1,6 +1,6 @@
 import { Profile, ChatMessage } from '@skyware/bot';
 import { db } from '../db/index.mts';
-import { resolveHandleToDid } from '../cache.mts';
+import { resolveDidToHandle, resolveHandleToDid } from '../cache.mts';
 import { outdent } from 'outdent';
 
 function bigIntReplacer(_key: string, value: any): any {
@@ -111,13 +111,15 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
         .execute();
       console.info(`Got post notifications for ${sender.did}: ${JSON.stringify(postNotifications, bigIntReplacer)}`);
 
+      const handles = await Promise.all(
+        postNotifications.map(async (notification) => resolveDidToHandle(notification.from)),
+      );
+
       return outdent`
         Your current settings:
         - Notify blocks: ${settings?.blocks === 1 ? 'on' : 'off'}
         - Notify lists: ${settings?.lists === 1 ? 'on' : 'off'}
-        - Notify posts: ${
-          postNotifications.length ? postNotifications.map((notification) => notification.from).join(', ') : 'none'
-        }
+        - Notify posts: ${handles.length ? handles.join(', ') : 'none'}
       `;
     }
     default: {
