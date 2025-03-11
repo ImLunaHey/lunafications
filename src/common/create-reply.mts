@@ -121,6 +121,10 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
       `;
     }
     default: {
+      if (message.text.toLowerCase().includes('thanks') || message.text.toLowerCase().includes('thank you')) {
+        return 'You are welcome!';
+      }
+
       return 'I did not understand that. Please reply with "menu" to see the available options.';
     }
   }
