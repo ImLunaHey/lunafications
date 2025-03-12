@@ -15,7 +15,7 @@
   "dependencies": {
     "@atcute/bluesky": "^1.0.14",
     "@atcute/bluesky-richtext-builder": "^1.0.2",
-    "@atproto/api": "^0.14.7",
+    "@atproto/api": "^0.14.9",
     "@skyware/bot": "^0.3.8",
     "@skyware/jetstream": "^0.2.2",
     "@types/better-sqlite3": "^7.6.12",
