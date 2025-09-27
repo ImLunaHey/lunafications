@@ -1,5 +1,6 @@
 import { ListPurpose, RichText } from '@skyware/bot';
 import { resolveDidToHandle, fetchListDetails } from './cache.mts';
+import { logger } from './logger.mts';
 
 type BlockedMessage = {
   /**
@@ -107,7 +108,7 @@ export const getMessages = (queueName: string): Message[] => {
 };
 
 export const addMessage = (queueName: string, message: Message) => {
-  console.info(`Adding message to queue ${queueName}: ${message.type}`);
+  logger.info(`Adding message to queue ${queueName}: ${message.type}`);
   const messages = queue.get(queueName) || new Set();
   messages.add(message);
   queue.set(queueName, messages);

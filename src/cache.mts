@@ -1,6 +1,7 @@
 import { ListView } from '@atproto/api/dist/client/types/app/bsky/graph/defs.js';
 import { TimeCache } from './time-cache.mts';
 import { publicAgent, authedAgent } from './common/agents.mts';
+import { logger } from './logger.mts';
 
 const ONE_MINUTE = 60_000;
 
@@ -63,17 +64,17 @@ export const resolveHandleToDid = async (_handle: string) => {
     const cachedDid = didCache.get(handle);
     if (cachedDid) return cachedDid;
 
-    console.info(`Fetching profile for ${handle}`);
+    logger.info(`Fetching profile for ${handle}`);
     const did = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${handle}`)
       .then((res) => res.json())
       .then((data) => data.did);
     didCache.set(handle, did);
 
-    console.info(`Resolved ${handle} to ${did}`);
+    logger.info(`Resolved ${handle} to ${did}`);
 
     return did;
   } catch (error) {
-    console.error('Failed to resolve handle to DID:', error);
+    logger.error('Failed to resolve handle to DID:', error);
     return null;
   }
 };

@@ -1,6 +1,7 @@
 import { CommitEvent } from '@skyware/jetstream';
 import { addMessage } from './queue.mts';
 import { db } from './db/index.mts';
+import { logger } from './logger.mts';
 
 export const jetstreamBlockHandler = async (event: CommitEvent<'app.bsky.graph.block'>) => {
   try {
@@ -22,7 +23,7 @@ export const jetstreamBlockHandler = async (event: CommitEvent<'app.bsky.graph.b
       did: did,
     });
   } catch (error) {
-    console.error('Failed to process block event:', error);
+    logger.error('Failed to process block event:', error);
   }
 };
 
@@ -47,7 +48,7 @@ export const jetstreamListItemHandler = async (event: CommitEvent<'app.bsky.grap
       did,
     });
   } catch (error) {
-    console.error('Failed to process list event:', error);
+    logger.error('Failed to process list event:', error);
   }
 };
 
@@ -77,6 +78,6 @@ export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed
       });
     }
   } catch (error) {
-    console.error('Failed to process post event:', error);
+    logger.error('Failed to process post event:', error);
   }
 };

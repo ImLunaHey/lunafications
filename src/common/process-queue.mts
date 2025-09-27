@@ -1,5 +1,6 @@
 import { bot } from '../bot.mts';
 import { getMessages, getQueueNames, messagesToRichText } from '../queue.mts';
+import { logger } from '../logger.mts';
 
 export const processQueue = async () => {
   const queues = getQueueNames();
@@ -11,14 +12,14 @@ export const processQueue = async () => {
   for (const queue of queues) {
     const messages = getMessages(queue);
     if (messages.length === 0) continue;
-    console.info(`Sending ${messages.length} messages for queue ${queue}`);
+    logger.info(`Sending ${messages.length} messages for queue ${queue}`);
 
     for (const message of messages) {
       try {
         const conversation = await bot.getConversationForMembers([queue]);
         await conversation.sendMessage({ text: await messagesToRichText([message]) });
       } catch (error) {
-        console.error(`Failed to send message to ${queue}:`, error);
+        logger.error(`Failed to send message to ${queue}:`, error);
       }
     }
   }
