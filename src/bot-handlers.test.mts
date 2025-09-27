@@ -1,7 +1,11 @@
-import { test, expect } from 'vitest';
-import { chatMessageHandler } from './bot-handlers.mts';
+import { afterEach, expect, test, vi } from 'vitest';
+import { chatErrorHandler, chatMessageHandler } from './bot-handlers.mts';
 import { ChatMessage } from '@skyware/bot';
 import { outdent } from 'outdent';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 test('chatMessageHandler', async () => {
   let reply = '';
@@ -31,4 +35,24 @@ test('chatMessageHandler', async () => {
     - 'hide all': Turn off all notifications
     - 'settings': View your current notification settings
   `);
+});
+
+test('chatErrorHandler formats XRPC errors', async () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+  await chatErrorHandler({
+    status: 502,
+    kind: 'UpstreamFailure',
+    description: 'UpstreamFailure',
+  });
+
+  expect(consoleError).toHaveBeenCalledWith('Bot error: status 502 – UpstreamFailure – UpstreamFailure');
+});
+
+test('chatErrorHandler falls back to generic errors', async () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+  await chatErrorHandler(new Error('Unexpected failure'));
+
+  expect(consoleError).toHaveBeenCalledWith('Bot error: Unexpected failure');
 });
