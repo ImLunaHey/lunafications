@@ -95,21 +95,34 @@ export const messagesToRichText = async (messages: Message[]): Promise<RichText>
   return richText;
 };
 
-const queue = new Map<string, Set<Message>>();
+const queue = new Map<string, Map<string, Message>>();
+
+const resolveMessageKey = (message: Message): string => {
+  switch (message.type) {
+    case 'blocked':
+      return `${message.type}:${message.did}`;
+    case 'list':
+      return `${message.type}:${message.did}:${message.list}`;
+    case 'post':
+      return `${message.type}:${message.did}:${message.post}`;
+  }
+};
 
 export const getQueueNames = (): string[] => {
   return Array.from(queue.keys());
 };
 
 export const getMessages = (queueName: string): Message[] => {
-  const messages = queue.get(queueName) || [];
-  queue.set(queueName, new Set());
+  const messages = queue.get(queueName);
+  if (!messages) return [];
+
+  queue.set(queueName, new Map());
   return [...messages.values()];
 };
 
 export const addMessage = (queueName: string, message: Message) => {
   logger.info(`Adding message to queue ${queueName}: ${message.type}`);
-  const messages = queue.get(queueName) || new Set();
-  messages.add(message);
+  const messages = queue.get(queueName) || new Map();
+  messages.set(resolveMessageKey(message), message);
   queue.set(queueName, messages);
 };
