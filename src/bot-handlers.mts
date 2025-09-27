@@ -1,8 +1,16 @@
 import { ChatMessage } from '@skyware/bot';
 import { createReply } from './common/create-reply.mts';
 import { logger } from './logger.mts';
+import { TimeCache } from './time-cache.mts';
+
+const processedMessages = new TimeCache<boolean>(60 * 60 * 1000);
 
 export const chatMessageHandler = async (message: ChatMessage) => {
+  if (processedMessages.get(message.id)) {
+    logger.debug(`Skipping duplicate message ${message.id}`);
+    return;
+  }
+
   try {
     const sender = await message.getSender();
     logger.info(`Received message from @${sender.handle}: ${message.text}`);
@@ -13,6 +21,8 @@ export const chatMessageHandler = async (message: ChatMessage) => {
     await conversation.sendMessage({
       text: await createReply(sender, message),
     });
+
+    processedMessages.set(message.id, true);
   } catch (error) {
     logger.error(error);
   }
