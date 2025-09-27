@@ -5,6 +5,7 @@ import { jetstream } from './jetstream.mts';
 import { db, migrateToLatest } from './db/index.mts';
 import { processQueue } from './common/process-queue.mts';
 import { updateBio } from './common/update-bio.mts';
+import { logger } from './logger.mts';
 
 const username = process.env.BSKY_USERNAME;
 const password = process.env.BSKY_PASSWORD;
@@ -14,7 +15,7 @@ const TEN_MINUTES = 600_000;
 
 const main = async () => {
   if (!username || !password) {
-    console.error('Please provide a username and password in the environment variables BSKY_USERNAME and BSKY_PASSWORD.');
+    logger.error('Please provide a username and password in the environment variables BSKY_USERNAME and BSKY_PASSWORD.');
     process.exit(1);
   }
 
@@ -25,11 +26,11 @@ const main = async () => {
     password,
   });
 
-  console.info(`Logged in as ${username}`);
+  logger.info(`Logged in as ${username}`);
 
   await bot.setChatPreference(IncomingChatPreference.All);
 
-  console.info('Listening for messages...');
+  logger.info('Listening for messages...');
 
   jetstream.start();
 
@@ -37,4 +38,6 @@ const main = async () => {
   setTimeout(updateBio, TEN_MINUTES);
 };
 
-main().catch(console.error);
+main().catch((error) => {
+  logger.error(error);
+});
