@@ -1,6 +1,8 @@
 import { Jetstream } from '@skyware/jetstream';
 import { jetstreamBlockHandler, jetstreamListItemHandler, jetstreamFeedPostHandler } from './jetstream-handlers.mts';
 
+let cursor: number | undefined = 0;
+
 export const jetstream = new Jetstream({
   wantedCollections: ['app.bsky.graph.block', 'app.bsky.graph.listitem', 'app.bsky.feed.post'],
 });
@@ -20,10 +22,7 @@ const clearScheduledReconnect = () => {
 const scheduleReconnect = () => {
   if (reconnectTimeout) return;
 
-  const delay = Math.min(
-    BASE_RECONNECT_DELAY_MS * 2 ** reconnectAttempts,
-    MAX_RECONNECT_DELAY_MS,
-  );
+  const delay = Math.min(BASE_RECONNECT_DELAY_MS * 2 ** reconnectAttempts, MAX_RECONNECT_DELAY_MS);
   reconnectAttempts += 1;
 
   console.warn(`Jetstream connection lost. Reconnecting in ${delay}ms.`);
@@ -33,11 +32,27 @@ const scheduleReconnect = () => {
   }, delay);
 };
 
-jetstream.on('app.bsky.graph.block', jetstreamBlockHandler);
+jetstream.on('commit', (commit) => {
+  cursor = commit.time_us;
+});
 
-jetstream.on('app.bsky.graph.listitem', jetstreamListItemHandler);
+jetstream.on('app.bsky.graph.block', (event) => {
+  // skip events before the cursor
+  if (cursor && event.time_us < cursor) return;
+  jetstreamBlockHandler(event);
+});
 
-jetstream.on('app.bsky.feed.post', jetstreamFeedPostHandler);
+jetstream.on('app.bsky.graph.listitem', (event) => {
+  // skip events before the cursor
+  if (cursor && event.time_us < cursor) return;
+  jetstreamListItemHandler(event);
+});
+
+jetstream.on('app.bsky.feed.post', (event) => {
+  // skip events before the cursor
+  if (cursor && event.time_us < cursor) return;
+  jetstreamFeedPostHandler(event);
+});
 
 jetstream.on('open', () => {
   reconnectAttempts = 0;
