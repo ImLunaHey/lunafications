@@ -30,4 +30,10 @@ export const chatMessageHandler = async (message: ChatMessage) => {
 
 export const chatErrorHandler = async (error: unknown) => {
   logger.error('Bot error:', error instanceof Error ? error : new Error(String(error)));
+
+  const message = error instanceof Error ? error.message : String(error);
+  if (/AuthMissing|ExpiredToken|InvalidToken/.test(message)) {
+    logger.error('Session lost, exiting for restart');
+    process.exit(1);
+  }
 };
