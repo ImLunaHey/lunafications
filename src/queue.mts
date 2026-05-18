@@ -121,7 +121,7 @@ export const getMessages = (queueName: string): Message[] => {
 };
 
 export const addMessage = (queueName: string, message: Message) => {
-  logger.info(`Adding message to queue ${queueName}: ${message.type}`);
+  logger.info('Adding message to queue', { queueName, type: message.type });
   const messages = queue.get(queueName) || new Map();
   messages.set(resolveMessageKey(message), message);
   queue.set(queueName, messages);

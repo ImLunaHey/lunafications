@@ -30,7 +30,7 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
         .values({ did: sender.did, blocks: 1, lists: 0 })
         .onConflict((builder) => builder.doUpdateSet({ blocks: 1 }))
         .executeTakeFirst();
-      logger.info(`Updated settings for ${sender.did}`, result);
+      logger.info('Updated settings', { did: sender.did, result });
       return "You'll now receive notifications when someone blocks you.";
     }
     case 'notify lists': {
@@ -39,7 +39,7 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
         .values({ did: sender.did, blocks: 0, lists: 1 })
         .onConflict((builder) => builder.doUpdateSet({ lists: 1 }))
         .executeTakeFirst();
-      logger.info(`Updated settings for ${sender.did}`, result);
+      logger.info('Updated settings', { did: sender.did, result });
       return "You'll now receive notifications when you're added to lists.";
     }
     case 'notify all': {
@@ -48,7 +48,7 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
         .values({ did: sender.did, blocks: 1, lists: 1 })
         .onConflict((builder) => builder.doUpdateSet({ blocks: 1, lists: 1 }))
         .executeTakeFirst();
-      logger.info(`Updated settings for ${sender.did}`, result);
+      logger.info('Updated settings', { did: sender.did, result });
       return "You'll now receive all notifications.";
     }
     case 'notify posts': {
@@ -64,17 +64,17 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
         .onConflict((builder) => builder.doUpdateSet({ from: from }))
         .executeTakeFirst();
 
-      logger.info(`Updated post notifications for ${sender.did}`, result);
+      logger.info('Updated post notifications', { did: sender.did, result });
       return `You will be notified when ${handle} makes a post.`;
     }
     case 'hide blocks': {
       const result = await db.updateTable('settings').set({ blocks: 0 }).where('did', '=', sender.did).executeTakeFirst();
-      logger.info(`Deleted settings for ${sender.did}`, result);
+      logger.info('Deleted settings', { did: sender.did, result });
       return "You'll no longer receive block notifications.";
     }
     case 'hide lists': {
       const result = await db.updateTable('settings').set({ lists: 0 }).where('did', '=', sender.did).executeTakeFirst();
-      logger.info(`Deleted settings for ${sender.did}`, result);
+      logger.info('Deleted settings', { did: sender.did, result });
       return "You'll no longer receive list notifications.";
     }
     case 'hide posts': {
@@ -89,24 +89,24 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
         .where('did', '=', sender.did)
         .where('from', '=', from)
         .executeTakeFirst();
-      logger.info(`Deleted post notifications for ${sender.did}`, result);
+      logger.info('Deleted post notifications', { did: sender.did, result });
       return `You will no longer be notified when ${handle} makes a post.`;
     }
     case 'hide all': {
       const result = await db.deleteFrom('settings').where('did', '=', sender.did).executeTakeFirst();
-      logger.info(`Updated settings for ${sender.did}`, result);
+      logger.info('Updated settings', { did: sender.did, result });
       return "You'll no longer receive any notifications.";
     }
     case 'settings': {
       const settings = await db.selectFrom('settings').selectAll().where('did', '=', sender.did).executeTakeFirst();
-      logger.info(`Got settings for ${sender.did}`, settings);
+      logger.info('Got settings', { did: sender.did, settings });
 
       const postNotifications = await db
         .selectFrom('post_notifications')
         .selectAll()
         .where('did', '=', sender.did)
         .execute();
-      logger.info(`Got post notifications for ${sender.did}`, postNotifications);
+      logger.info('Got post notifications', { did: sender.did, postNotifications });
 
       const handles = await Promise.all(
         postNotifications.map(async (notification) => resolveDidToHandle(notification.from)),

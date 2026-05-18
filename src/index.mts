@@ -19,6 +19,8 @@ const main = async () => {
     process.exit(1);
   }
 
+  logger.info('Attempting to login', { username });
+
   await migrateToLatest(db);
 
   await bot.login({
@@ -26,7 +28,7 @@ const main = async () => {
     password,
   });
 
-  logger.info(`Logged in as ${username}`);
+  logger.info('Logged in', { username });
 
   await bot.setChatPreference(IncomingChatPreference.All);
 

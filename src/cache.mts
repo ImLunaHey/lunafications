@@ -64,13 +64,13 @@ export const resolveHandleToDid = async (_handle: string) => {
     const cachedDid = didCache.get(handle);
     if (cachedDid) return cachedDid;
 
-    logger.info(`Fetching profile for ${handle}`);
+    logger.info('Fetching profile', { handle });
     const did = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${handle}`)
       .then((res) => res.json())
       .then((data) => data.did);
     didCache.set(handle, did);
 
-    logger.info(`Resolved ${handle} to ${did}`);
+    logger.info('Resolved handle', { handle, did });
 
     return did;
   } catch (error) {

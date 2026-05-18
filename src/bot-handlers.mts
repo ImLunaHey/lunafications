@@ -7,13 +7,13 @@ const processedMessages = new TimeCache<boolean>(60 * 60 * 1000);
 
 export const chatMessageHandler = async (message: ChatMessage) => {
   if (processedMessages.get(message.id)) {
-    logger.debug(`Skipping duplicate message ${message.id}`);
+    logger.debug('Skipping duplicate message', { messageId: message.id });
     return;
   }
 
   try {
     const sender = await message.getSender();
-    logger.info(`Received message from @${sender.handle}: ${message.text}`);
+    logger.info('Received message', { handle: sender.handle, text: message.text });
 
     const conversation = await message.getConversation();
     if (!conversation) return;

@@ -31,14 +31,14 @@ export const processQueue = async () => {
       }
 
       if (sentMessages.get(messageKey)) {
-        logger.debug(`Skipping duplicate message ${messageKey}`);
+        logger.debug('Skipping duplicate message', { messageKey });
         return false;
       }
       return true;
     });
 
     if (uniqueMessages.length === 0) continue;
-    logger.info(`Sending ${uniqueMessages.length} messages for queue ${queue}`);
+    logger.info('Sending messages for queue', { queue, count: uniqueMessages.length });
 
     for (const message of uniqueMessages) {
       try {
@@ -60,7 +60,7 @@ export const processQueue = async () => {
         }
         sentMessages.set(messageKey, true);
       } catch (error) {
-        logger.error(`Failed to send message to ${queue}:`, error);
+        logger.error('Failed to send message', { queue }, error);
       }
     }
   }
