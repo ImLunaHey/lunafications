@@ -1,4 +1,5 @@
 import { ChatMessage } from '@skyware/bot';
+import { bot } from './bot.mts';
 import { createReply } from './common/create-reply.mts';
 import { logger } from './logger.mts';
 import { TimeCache } from './time-cache.mts';
@@ -29,10 +30,16 @@ export const chatMessageHandler = async (message: ChatMessage) => {
 };
 
 export const chatErrorHandler = async (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  const isAuthError = /AuthMissing|ExpiredToken|InvalidToken/.test(message);
+
+  if (isAuthError && !bot.hasSession) {
+    return;
+  }
+
   logger.error('Bot error:', error instanceof Error ? error : new Error(String(error)));
 
-  const message = error instanceof Error ? error.message : String(error);
-  if (/AuthMissing|ExpiredToken|InvalidToken/.test(message)) {
+  if (isAuthError) {
     logger.error('Session lost, exiting for restart');
     process.exit(1);
   }
