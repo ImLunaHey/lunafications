@@ -1,6 +1,6 @@
 import { ListView } from '@atproto/api/dist/client/types/app/bsky/graph/defs.js';
 import { TimeCache } from './time-cache.mts';
-import { publicAgent, authedAgent } from './common/agents.mts';
+import { publicAgent } from './common/agents.mts';
 import { logger } from './logger.mts';
 
 const ONE_MINUTE = 60_000;
