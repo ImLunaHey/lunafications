@@ -2,7 +2,7 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "pnpm start"
+startCommand = "node --import tsx ./src/index.mts"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 sleepApplication = false
