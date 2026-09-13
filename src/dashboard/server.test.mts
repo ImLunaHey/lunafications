@@ -92,7 +92,17 @@ test('protects status while exposing safe OAuth discovery documents', async () =
     });
     expect(status.status).toBe(200);
     expect(await status.json()).toHaveProperty('queue.pending', 0);
-    expect((await fetch(`${origin}/oauth/callback?state=bad`)).status).toBe(403);
+    const missingCookie = await fetch(`${origin}/oauth/callback?state=bad`);
+    expect(missingCookie.status).toBe(403);
+    expect(await missingCookie.text()).toContain('start the sign-in process again');
+
+    // A cookie is application state, not the independently generated protocol
+    // state in the callback URL. The OAuth client must validate the latter.
+    const unknownProtocolState = await fetch(`${origin}/oauth/callback?state=protocol-state`, {
+      headers: { cookie: '__Host-lunafications_oauth_state=application-state' },
+    });
+    expect(unknownProtocolState.status).toBe(403);
+    expect(await unknownProtocolState.text()).toContain('start the sign-in process again');
   } finally {
     server.close();
   }

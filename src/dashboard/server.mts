@@ -86,10 +86,19 @@ export const startDashboardServer = async (database: Database, port = Number(pro
       if (url.pathname === '/oauth/callback') {
         if (request.method !== 'GET') return send(response, 405, 'Method not allowed');
         const state = cookies(request)[STATE_COOKIE];
-        if (!secureEqual(state, url.searchParams.get('state'))) {
+        if (!state) {
           return send(response, 403, 'Invalid OAuth state. Please start the sign-in process again.');
         }
-        const result = await oauth.client.callback(url.searchParams);
+        // The OAuth client generates and validates the protocol `state` itself.
+        // The value supplied to authorize() is application state, returned here
+        // as result.state, and is deliberately different from the URL parameter.
+        let result: Awaited<ReturnType<typeof oauth.client.callback>>;
+        try {
+          result = await oauth.client.callback(url.searchParams);
+        } catch (error) {
+          logger.warn('OAuth callback validation failed', error);
+          return send(response, 403, 'Invalid OAuth state. Please start the sign-in process again.');
+        }
         if (!secureEqual(state, result.state) || result.session.did !== config.adminDid) {
           await oauth.sessionStore.del(result.session.did);
           return send(response, 403, 'This dashboard is restricted to its configured administrator.');
