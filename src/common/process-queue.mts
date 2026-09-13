@@ -21,6 +21,12 @@ export const processQueue = async (
     try {
       await sendMessage(item.recipient, await messagesToRichText([item.message]));
       await markMessageSent(database, item.key, now);
+      logger.info('Notification delivered', {
+        key: item.key,
+        recipient: item.recipient,
+        type: item.message.type,
+        attempt: item.attempts + 1,
+      });
     } catch (error) {
       await deferMessage(database, item.key, item.attempts, now);
       logger.error('Failed to send message; deferred for retry', { recipient: item.recipient, key: item.key }, error);

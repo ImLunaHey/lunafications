@@ -9,7 +9,7 @@ const DELIVERED_RETENTION_MS = 48 * 60 * 60 * 1000;
 
 export const addMessage = async (db: Database, recipient: string, message: Message, now = Date.now()) => {
   const key = resolveMessageKey(recipient, message);
-  await db
+  const result = await db
     .insertInto('notification_outbox')
     .values({
       key,
@@ -21,8 +21,14 @@ export const addMessage = async (db: Database, recipient: string, message: Messa
       delivered_at: null,
     })
     .onConflict((conflict) => conflict.column('key').doNothing())
-    .execute();
-  logger.info('Added message to outbox', { recipient, type: message.type });
+    .executeTakeFirst();
+  const queued = Number(result.numInsertedOrUpdatedRows ?? 0) === 1;
+  if (queued) {
+    logger.info('Notification queued', { key, recipient, type: message.type });
+  } else {
+    logger.info('Duplicate notification ignored', { key, recipient, type: message.type });
+  }
+  return queued;
 };
 
 export const getPendingMessages = async (db: Database, now = Date.now(), limit = 100) => {
