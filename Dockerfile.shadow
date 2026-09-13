@@ -1,0 +1,13 @@
+FROM rust:1.88-bookworm AS build
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY rust-shadow ./rust-shadow
+RUN cargo build --locked --release --package lunafications-shadow
+
+FROM debian:bookworm-slim
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/target/release/lunafications-shadow /usr/local/bin/lunafications-shadow
+USER 65532:65532
+ENTRYPOINT ["/usr/local/bin/lunafications-shadow"]

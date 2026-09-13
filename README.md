@@ -66,6 +66,23 @@ Add both printed values to Railway as `DASHBOARD_SESSION_SECRET` and `DASHBOARD_
 
 The dashboard uses Bluesky OAuth and only accepts the immutable DID belonging to `@imlunahey.com`. Other accounts are rejected even if the handle changes or is impersonated. Sessions last 12 hours, are stored as keyed hashes, and the dashboard is read-only.
 
+### Rust shadow worker
+
+The repository includes a read-only Rust worker that independently consumes the same Jetstream collections and logs every notification it believes the production service would enqueue. It cannot send messages and does not accept Bluesky credentials.
+
+Deploy it as a second Railway service from this repository with:
+
+```text
+RAILWAY_DOCKERFILE_PATH=Dockerfile.shadow
+SHADOW_API_URL=http://<production-service>.railway.internal:<production-port>
+SHADOW_API_TOKEN=<shared random token>
+RUST_LOG=info
+```
+
+Set the same `SHADOW_API_TOKEN` on the production TypeScript service. `pnpm run dashboard:generate-secrets` generates a suitable value. The production service exposes only a snapshot of notification preferences and post subscriber DIDs through this token-authenticated interface; missing or weak tokens fail closed. Rust refreshes that snapshot every 30 seconds and processes Jetstream events locally, avoiding per-event requests or extra SQLite load. Do not give the shadow service `BSKY_USERNAME`, `BSKY_PASSWORD`, `SQLITE_LOCATION`, or a volume.
+
+The shadow service exposes `/health` on Railway's `PORT`, including its Jetstream connection status and event, decision, and error counters. Compare `shadow notification decision` entries with production `Notification queued` and `Duplicate notification ignored` entries using their identical `key` fields.
+
 ## Usage
 
 The bot provides instructions to end-users through its profile bio and responds to the following commands:

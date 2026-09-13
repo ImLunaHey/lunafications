@@ -41,6 +41,35 @@ const send = (response: ServerResponse, status: number, body: string, type = 'te
   response.writeHead(status, { ...securityHeaders, 'content-type': type });
   response.end(body);
 };
+
+const bearerToken = (request: IncomingMessage) => {
+  const authorization = request.headers.authorization;
+  return authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
+};
+
+const serveShadowState = async (
+  request: IncomingMessage,
+  response: ServerResponse,
+  url: URL,
+  database: Database,
+) => {
+  const token = process.env.SHADOW_API_TOKEN;
+  if (!token || token.length < 32) return send(response, 404, 'Not found');
+  if (!secureEqual(bearerToken(request), token)) {
+    return send(response, 401, JSON.stringify({ error: 'Unauthorized' }), 'application/json');
+  }
+  if (request.method !== 'GET') return send(response, 405, 'Method not allowed');
+
+  if (url.pathname === '/internal/shadow/snapshot') {
+    const [settings, postNotifications] = await Promise.all([
+      database.selectFrom('settings').selectAll().execute(),
+      database.selectFrom('post_notifications').selectAll().execute(),
+    ]);
+    return send(response, 200, JSON.stringify({ settings, postNotifications }), 'application/json');
+  }
+
+  return send(response, 404, 'Not found');
+};
 const redirect = (response: ServerResponse, location: string, setCookie?: string | string[]) => {
   response.writeHead(303, { ...securityHeaders, location, ...(setCookie ? { 'set-cookie': setCookie } : {}) });
   response.end();
@@ -67,6 +96,9 @@ export const startDashboardServer = async (database: Database, port = Number(pro
     try {
       const url = new URL(request.url ?? '/', config?.publicUrl ?? 'http://localhost');
       if (url.pathname === '/health') return send(response, 200, JSON.stringify({ ok: true }), 'application/json');
+      if (url.pathname.startsWith('/internal/shadow/')) {
+        return await serveShadowState(request, response, url, database);
+      }
       if (!config || !oauth) return send(response, 503, 'Dashboard is disabled because its secrets are not configured.');
 
       if (url.pathname === '/oauth/client-metadata.json') {
