@@ -12,17 +12,22 @@ const defaultSender: MessageSender = async (recipient, text) => {
   await conversation.sendMessage({ text });
 };
 
-export const isBlockedActorError = (error: unknown) => {
+type PermanentRecipientFailure = 'blocked_actor' | 'recipient_not_found';
+
+export const getPermanentRecipientFailure = (error: unknown): PermanentRecipientFailure | null => {
   let current = error;
   for (let depth = 0; depth < 10 && current && typeof current === 'object'; depth++) {
     const candidate = current as { kind?: unknown; cause?: unknown };
-    if (candidate.kind === 'BlockedActor') return true;
+    if (candidate.kind === 'BlockedActor') return 'blocked_actor';
+    if (candidate.kind === 'RecipientNotFound') return 'recipient_not_found';
     current = candidate.cause;
   }
-  return false;
+  return null;
 };
 
-const disableBlockedRecipient = async (database: Database, recipient: string) =>
+export const isBlockedActorError = (error: unknown) => getPermanentRecipientFailure(error) === 'blocked_actor';
+
+const disableRecipient = async (database: Database, recipient: string) =>
   database.transaction().execute(async (transaction) => {
     const settings = await transaction.deleteFrom('settings').where('did', '=', recipient).executeTakeFirst();
     const postSubscriptions = await transaction
@@ -63,12 +68,17 @@ export const processQueue = async (
       runtimeState.lastDeliveryAt = now;
       runtimeState.lastDeliveryError = null;
     } catch (error) {
-      if (isBlockedActorError(error)) {
-        const removed = await disableBlockedRecipient(database, item.recipient);
+      const permanentFailure = getPermanentRecipientFailure(error);
+      if (permanentFailure) {
+        const removed = await disableRecipient(database, item.recipient);
         disabledRecipients.add(item.recipient);
-        logger.warn('Notifications disabled because a block exists between the recipient and the bot', {
+        const message =
+          permanentFailure === 'blocked_actor'
+            ? 'Notifications disabled because a block exists between the recipient and the bot'
+            : 'Notifications disabled because the recipient account no longer exists';
+        logger.warn(message, {
           recipient: item.recipient,
-          reason: 'blocked_actor',
+          reason: permanentFailure,
           ...removed,
         });
         continue;

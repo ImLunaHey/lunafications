@@ -55,7 +55,9 @@ const buildStructuredEntry = (level: Level, args: unknown[]): Record<string, unk
 
 const emit = (level: Level, args: unknown[]): string => {
   if (isProduction) {
-    return JSON.stringify(buildStructuredEntry(level, args));
+    return JSON.stringify(buildStructuredEntry(level, args), (_key, value: unknown) =>
+      typeof value === 'bigint' ? value.toString() : value,
+    );
   }
   return args.map(formatArgumentPretty).join(' ');
 };

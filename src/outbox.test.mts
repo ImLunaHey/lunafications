@@ -10,7 +10,11 @@ vi.mock('./cache.mts', () => ({
 
 import { createDb, migrateToLatest, type Database } from './db/index.mts';
 import { addMessage, getPendingMessages } from './outbox.mts';
-import { isBlockedActorError, processQueue } from './common/process-queue.mts';
+import {
+  getPermanentRecipientFailure,
+  isBlockedActorError,
+  processQueue,
+} from './common/process-queue.mts';
 import { logger } from './logger.mts';
 
 describe('durable notification outbox', () => {
@@ -176,5 +180,67 @@ describe('durable notification outbox', () => {
     expect(isBlockedActorError(new Error('wrapper', {
       cause: Object.assign(new Error('blocked'), { kind: 'BlockedActor' }),
     }))).toBe(true);
+  });
+
+  test('disables a recipient that no longer exists instead of retrying forever', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    await database.insertInto('settings').values({ did: 'did:plc:missing', blocks: 1, lists: 1 }).execute();
+    await database
+      .insertInto('post_notifications')
+      .values({ did: 'did:plc:missing', from: 'did:plc:author' })
+      .execute();
+    await addMessage(
+      database,
+      'did:plc:missing',
+      { type: 'post', did: 'did:plc:author', post: 'one', event: '1:one' },
+      100,
+    );
+    const xrpcError = Object.assign(new Error('RecipientNotFound > recipient does not exist'), {
+      name: 'XRPCError',
+      kind: 'RecipientNotFound',
+    });
+
+    await processQueue(
+      database,
+      vi.fn(async () => {
+        throw new Error('Failed to create conversation.', { cause: xrpcError });
+      }),
+      100,
+    );
+
+    expect(
+      await database.selectFrom('settings').selectAll().where('did', '=', 'did:plc:missing').execute(),
+    ).toEqual([]);
+    expect(
+      await database.selectFrom('post_notifications').selectAll().where('did', '=', 'did:plc:missing').execute(),
+    ).toEqual([]);
+    expect(
+      await database
+        .selectFrom('notification_outbox')
+        .selectAll()
+        .where('recipient', '=', 'did:plc:missing')
+        .execute(),
+    ).toEqual([]);
+    expect(warn).toHaveBeenCalledWith('Notifications disabled because the recipient account no longer exists', {
+      recipient: 'did:plc:missing',
+      reason: 'recipient_not_found',
+      settingsRemoved: 1,
+      postSubscriptionsRemoved: 1,
+      pendingMessagesRemoved: 1,
+    });
+  });
+
+  test('only classifies structured permanent recipient error kinds', () => {
+    expect(getPermanentRecipientFailure(new Error('RecipientNotFound > recipient does not exist'))).toBeNull();
+    expect(
+      getPermanentRecipientFailure(
+        new Error('wrapper', {
+          cause: Object.assign(new Error('missing'), { kind: 'RecipientNotFound' }),
+        }),
+      ),
+    ).toBe('recipient_not_found');
+    expect(
+      getPermanentRecipientFailure(Object.assign(new Error('rate limited'), { kind: 'RateLimitExceeded' })),
+    ).toBeNull();
   });
 });
