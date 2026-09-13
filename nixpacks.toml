@@ -1,0 +1,9 @@
+[phases.install]
+cmds = [
+  "npm install --global --prefix /opt/pnpm pnpm@12.4.1",
+  "/opt/pnpm/bin/pnpm install --frozen-lockfile",
+]
+cacheDirectories = ["/root/.local/share/pnpm/store/v11"]
+
+[start]
+cmd = "node --import tsx ./src/index.mts"
