@@ -5,6 +5,7 @@ import {
   createDashboardOAuthClient,
   createDashboardSession,
   deleteDashboardSession,
+  requestOAuthLock,
   secureEqual,
   validateDashboardSession,
   type DashboardConfig,
@@ -63,4 +64,42 @@ test('compares non-empty OAuth state values safely', () => {
   expect(secureEqual('same', 'different')).toBe(false);
   expect(secureEqual(undefined, 'same')).toBe(false);
   expect(secureEqual('', '')).toBe(false);
+});
+
+test('serializes OAuth credential operations for the same account', async () => {
+  const events: string[] = [];
+  let releaseFirst!: () => void;
+  const firstMayFinish = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const first = requestOAuthLock('did:plc:admin', async () => {
+    events.push('first:start');
+    await firstMayFinish;
+    events.push('first:end');
+  });
+  const second = requestOAuthLock('did:plc:admin', async () => {
+    events.push('second:start');
+  });
+
+  await Promise.resolve();
+  expect(events).toEqual(['first:start']);
+  releaseFirst();
+  await Promise.all([first, second]);
+  expect(events).toEqual(['first:start', 'first:end', 'second:start']);
+});
+
+test('allows OAuth credential operations for different accounts to run concurrently', async () => {
+  const events: string[] = [];
+  let releaseFirst!: () => void;
+  const firstMayFinish = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const first = requestOAuthLock('first', async () => {
+    events.push('first:start');
+    await firstMayFinish;
+  });
+  const second = requestOAuthLock('second', async () => {
+    events.push('second:start');
+  });
+
+  await second;
+  expect(events).toEqual(['first:start', 'second:start']);
+  releaseFirst();
+  await first;
 });

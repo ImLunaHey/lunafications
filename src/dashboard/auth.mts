@@ -6,11 +6,28 @@ import {
   type NodeSavedState,
   type NodeSavedSessionStore,
   type NodeSavedStateStore,
+  type RuntimeLock,
 } from '@atproto/oauth-client-node';
 import type { Database } from '../db/index.mts';
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const DASHBOARD_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+const oauthLocks = new Map<string, Promise<void>>();
+export const requestOAuthLock: RuntimeLock = async (name, operation) => {
+  const previous = oauthLocks.get(name) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => { release = resolve; });
+  const queued = previous.then(() => current);
+  oauthLocks.set(name, queued);
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (oauthLocks.get(name) === queued) oauthLocks.delete(name);
+  }
+};
 
 export type DashboardConfig = {
   publicUrl: string;
@@ -69,6 +86,7 @@ export const createDashboardOAuthClient = async (database: Database, config: Das
     keyset: [key],
     stateStore,
     sessionStore,
+    requestLock: requestOAuthLock,
   });
   return { client, sessionStore };
 };
