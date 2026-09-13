@@ -137,3 +137,6 @@ dist
 
 # database
 data
+
+# Rust build output
+target/

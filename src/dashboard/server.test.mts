@@ -71,6 +71,48 @@ test('keeps health public but fails closed when dashboard secrets are absent', a
   }
 });
 
+test('exposes only scoped read-only state with the shadow bearer token', async () => {
+  vi.stubEnv('DASHBOARD_PUBLIC_URL', '');
+  vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', '');
+  vi.stubEnv('DASHBOARD_SESSION_SECRET', '');
+  vi.stubEnv('DASHBOARD_OAUTH_PRIVATE_KEY', '');
+  vi.stubEnv('SHADOW_API_TOKEN', 'shadow-secret-that-is-at-least-32-characters');
+  await database.insertInto('settings').values({ did: 'did:plc:subject', blocks: 1, lists: 0 }).execute();
+  await database
+    .insertInto('post_notifications')
+    .values({ did: 'did:plc:recipient', from: 'did:plc:author' })
+    .execute();
+  const { server, origin } = await listen();
+  const headers = { authorization: 'Bearer shadow-secret-that-is-at-least-32-characters' };
+  try {
+    expect((await fetch(`${origin}/internal/shadow/snapshot`)).status).toBe(401);
+    expect(await (await fetch(`${origin}/internal/shadow/snapshot`, { headers })).json()).toEqual({
+      settings: [{ did: 'did:plc:subject', blocks: 1, lists: 0 }],
+      postNotifications: [{ did: 'did:plc:recipient', from: 'did:plc:author' }],
+    });
+    expect((await fetch(`${origin}/internal/shadow/snapshot`, { headers, method: 'POST' })).status).toBe(405);
+  } finally {
+    server.close();
+  }
+});
+
+test('does not expose the shadow API when its token is missing or weak', async () => {
+  vi.stubEnv('DASHBOARD_PUBLIC_URL', '');
+  vi.stubEnv('RAILWAY_PUBLIC_DOMAIN', '');
+  vi.stubEnv('DASHBOARD_SESSION_SECRET', '');
+  vi.stubEnv('DASHBOARD_OAUTH_PRIVATE_KEY', '');
+  vi.stubEnv('SHADOW_API_TOKEN', 'short');
+  const { server, origin } = await listen();
+  try {
+    const response = await fetch(`${origin}/internal/shadow/snapshot`, {
+      headers: { authorization: 'Bearer short' },
+    });
+    expect(response.status).toBe(404);
+  } finally {
+    server.close();
+  }
+});
+
 test('protects status while exposing safe OAuth discovery documents', async () => {
   const key = await JoseKey.generate(['ES256'], 'dashboard-oauth');
   vi.stubEnv('DASHBOARD_PUBLIC_URL', 'https://dashboard.example.com');
