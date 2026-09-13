@@ -10,7 +10,7 @@ vi.mock('./cache.mts', () => ({
 
 import { createDb, migrateToLatest, type Database } from './db/index.mts';
 import { addMessage, getPendingMessages } from './outbox.mts';
-import { processQueue } from './common/process-queue.mts';
+import { isBlockedActorError, processQueue } from './common/process-queue.mts';
 import { logger } from './logger.mts';
 
 describe('durable notification outbox', () => {
@@ -133,5 +133,48 @@ describe('durable notification outbox', () => {
 
     await processQueue(database, vi.fn(async () => undefined), 30_100);
     expect(await getPendingMessages(database, Number.MAX_SAFE_INTEGER)).toHaveLength(0);
+  });
+
+  test('disables a blocked recipient and removes all of their pending work', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    await database.insertInto('settings').values({ did: 'did:plc:blocked', blocks: 1, lists: 1 }).execute();
+    await database.insertInto('post_notifications').values([
+      { did: 'did:plc:blocked', from: 'did:plc:author-one' },
+      { did: 'did:plc:blocked', from: 'did:plc:author-two' },
+    ]).execute();
+    await addMessage(database, 'did:plc:blocked', { type: 'blocked', did: 'did:plc:actor', event: '1:a' }, 100);
+    await addMessage(database, 'did:plc:blocked', { type: 'blocked', did: 'did:plc:actor', event: '2:b' }, 101);
+    await addMessage(database, 'did:plc:other', { type: 'blocked', did: 'did:plc:actor', event: '3:c' }, 102);
+    const xrpcError = Object.assign(new Error('BlockedActor > block between recipient and sender'), {
+      name: 'XRPCError',
+      kind: 'BlockedActor',
+    });
+    const send = vi.fn(async (recipient: string) => {
+      if (recipient === 'did:plc:blocked') throw new Error('Failed to create conversation.', { cause: xrpcError });
+    });
+
+    await processQueue(database, send, 102);
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(await database.selectFrom('settings').selectAll().where('did', '=', 'did:plc:blocked').execute()).toEqual([]);
+    expect(await database.selectFrom('post_notifications').selectAll().where('did', '=', 'did:plc:blocked').execute()).toEqual([]);
+    expect(await database.selectFrom('notification_outbox').selectAll().where('recipient', '=', 'did:plc:blocked').execute()).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(
+      'Notifications disabled because a block exists between the recipient and the bot',
+      {
+        recipient: 'did:plc:blocked',
+        reason: 'blocked_actor',
+        settingsRemoved: 1,
+        postSubscriptionsRemoved: 2,
+        pendingMessagesRemoved: 2,
+      },
+    );
+  });
+
+  test('only treats the structured BlockedActor error kind as permanent', () => {
+    expect(isBlockedActorError(new Error('BlockedActor > block between recipient and sender'))).toBe(false);
+    expect(isBlockedActorError(new Error('wrapper', {
+      cause: Object.assign(new Error('blocked'), { kind: 'BlockedActor' }),
+    }))).toBe(true);
   });
 });
