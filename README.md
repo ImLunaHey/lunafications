@@ -14,7 +14,7 @@ A Bluesky bot that notifies you when you get blocked, added to lists, or when sp
 ### Prerequisites
 
 - Node.js (v22+)
-- npm
+- pnpm 12
 
 ### Installation
 
@@ -26,7 +26,7 @@ A Bluesky bot that notifies you when you get blocked, added to lists, or when sp
 
 2. Install dependencies:
    ```bash
-   npm install
+   pnpm install --frozen-lockfile
    ```
 
 3. Set up environment variables:
@@ -41,7 +41,7 @@ A Bluesky bot that notifies you when you get blocked, added to lists, or when sp
 
 4. Start the bot:
    ```bash
-   npm start
+   pnpm start
    ```
 
 ### Deployment
@@ -72,19 +72,19 @@ The bot provides instructions to end-users through its profile bio and responds 
 ### Running tests
 
 ```bash
-npm test
+pnpm test
 ```
 
 ### Running tests with coverage
 
 ```bash
-npm run coverage
+pnpm run coverage
 ```
 
 ### Testing in watch mode
 
 ```bash
-npm run coverage:watch
+pnpm run coverage:watch
 ```
 
 ## License

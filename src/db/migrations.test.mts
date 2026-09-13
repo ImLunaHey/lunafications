@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { Migrator } from 'kysely';
+import { Migrator } from 'kysely/migration';
 import { createDb, migrateToLatest } from './index.mts';
 import { migrationProvider } from './migrations.mts';
 

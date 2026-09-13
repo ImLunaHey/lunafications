@@ -1,5 +1,6 @@
 import SqliteDb from 'better-sqlite3';
-import { CompiledQuery, Kysely, Migrator, SqliteDialect } from 'kysely';
+import { CompiledQuery, Kysely, SqliteDialect } from 'kysely';
+import { Migrator } from 'kysely/migration';
 import { DatabaseSchema } from './schema.mts';
 import { migrationProvider } from './migrations.mts';
 import { mkdirSync } from 'fs';
