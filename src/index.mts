@@ -6,6 +6,7 @@ import { db, migrateToLatest } from './db/index.mts';
 import { startQueueProcessor } from './common/process-queue.mts';
 import { startBioUpdater } from './common/update-bio.mts';
 import { logger } from './logger.mts';
+import { startDashboardServer } from './dashboard/server.mts';
 
 const username = process.env.BSKY_USERNAME;
 const password = process.env.BSKY_PASSWORD;
@@ -60,6 +61,7 @@ const main = async () => {
   logger.info('Attempting to login', { username });
 
   await migrateToLatest(db);
+  await startDashboardServer(db);
 
   await loginWithRateLimitRetry(username, password);
 

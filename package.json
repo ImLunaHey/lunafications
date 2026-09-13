@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run test:run",
     "coverage": "vitest run --coverage",
-    "coverage:watch": "vitest --coverage"
+    "coverage:watch": "vitest --coverage",
+    "dashboard:generate-secrets": "tsx src/dashboard/generate-secrets.mts"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,8 @@
     "@atcute/bluesky": "^1.0.14",
     "@atcute/bluesky-richtext-builder": "^1.0.2",
     "@atproto/api": "^0.14.7",
+    "@atproto/jwk-jose": "^0.2.4",
+    "@atproto/oauth-client-node": "^0.5.7",
     "@skyware/bot": "^0.3.8",
     "@skyware/jetstream": "^0.2.2",
     "@types/better-sqlite3": "^7.6.12",
