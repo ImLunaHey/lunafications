@@ -3,11 +3,12 @@ import { CompiledQuery, Kysely, Migrator, SqliteDialect } from 'kysely';
 import { DatabaseSchema } from './schema.mts';
 import { migrationProvider } from './migrations.mts';
 import { mkdirSync } from 'fs';
+import { dirname } from 'path';
 
 const sqliteLocation = process.env.SQLITE_LOCATION || ':memory:';
 if (sqliteLocation !== ':memory:') {
-  const sqliteDirectory = sqliteLocation.split('/').slice(0, -1).join('/');
-  mkdirSync(sqliteDirectory, { recursive: true });
+  const sqliteDirectory = dirname(sqliteLocation);
+  if (sqliteDirectory !== '.') mkdirSync(sqliteDirectory, { recursive: true });
 }
 
 export const createDb = (location: string): Database => {

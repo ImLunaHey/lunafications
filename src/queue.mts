@@ -1,6 +1,5 @@
 import { ListPurpose, RichText } from '@skyware/bot';
 import { resolveDidToHandle, fetchListDetails } from './cache.mts';
-import { logger } from './logger.mts';
 
 type BlockedMessage = {
   /**
@@ -43,7 +42,7 @@ type UserPostMessage = {
   post: string;
 };
 
-type Message = BlockedMessage | ListMessage | UserPostMessage;
+export type Message = BlockedMessage | ListMessage | UserPostMessage;
 
 const resolveListPurposeToType = (purpose: ListPurpose): 'moderation list' | 'starter pack' | 'feed' => {
   switch (purpose) {
@@ -95,34 +94,13 @@ export const messagesToRichText = async (messages: Message[]): Promise<RichText>
   return richText;
 };
 
-const queue = new Map<string, Map<string, Message>>();
-
-const resolveMessageKey = (message: Message): string => {
+export const resolveMessageKey = (recipient: string, message: Message): string => {
   switch (message.type) {
     case 'blocked':
-      return `${message.type}:${message.did}`;
+      return `${recipient}:${message.type}:${message.did}`;
     case 'list':
-      return `${message.type}:${message.did}:${message.list}`;
+      return `${recipient}:${message.type}:${message.did}:${message.list}`;
     case 'post':
-      return `${message.type}:${message.did}:${message.post}`;
+      return `${recipient}:${message.type}:${message.did}:${message.post}`;
   }
-};
-
-export const getQueueNames = (): string[] => {
-  return Array.from(queue.keys());
-};
-
-export const getMessages = (queueName: string): Message[] => {
-  const messages = queue.get(queueName);
-  if (!messages) return [];
-
-  queue.set(queueName, new Map());
-  return [...messages.values()];
-};
-
-export const addMessage = (queueName: string, message: Message) => {
-  logger.info('Adding message to queue', { queueName, type: message.type });
-  const messages = queue.get(queueName) || new Map();
-  messages.set(resolveMessageKey(message), message);
-  queue.set(queueName, messages);
 };

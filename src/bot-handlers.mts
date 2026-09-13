@@ -1,5 +1,4 @@
 import { ChatMessage } from '@skyware/bot';
-import { bot } from './bot.mts';
 import { createReply } from './common/create-reply.mts';
 import { logger } from './logger.mts';
 import { TimeCache } from './time-cache.mts';
@@ -14,7 +13,7 @@ export const chatMessageHandler = async (message: ChatMessage) => {
 
   try {
     const sender = await message.getSender();
-    logger.info('Received message', { handle: sender.handle, text: message.text });
+    logger.info('Received message', { handle: sender.handle, messageId: message.id });
 
     const conversation = await message.getConversation();
     if (!conversation) return;
@@ -29,11 +28,11 @@ export const chatMessageHandler = async (message: ChatMessage) => {
   }
 };
 
-export const chatErrorHandler = async (error: unknown) => {
+export const chatErrorHandler = async (error: unknown, hasSession: boolean) => {
   const message = error instanceof Error ? error.message : String(error);
   const isAuthError = /AuthMissing|ExpiredToken|InvalidToken/.test(message);
 
-  if (isAuthError && !bot.hasSession) {
+  if (isAuthError && !hasSession) {
     return;
   }
 

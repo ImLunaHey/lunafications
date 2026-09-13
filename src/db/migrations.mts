@@ -38,3 +38,32 @@ migrations['002'] = {
     await db.schema.dropTable('post_notifications').execute();
   },
 };
+
+migrations['003'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('notification_outbox')
+      .addColumn('key', 'varchar', (col) => col.notNull().primaryKey())
+      .addColumn('recipient', 'varchar', (col) => col.notNull())
+      .addColumn('payload', 'text', (col) => col.notNull())
+      .addColumn('attempts', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('available_at', 'integer', (col) => col.notNull())
+      .addColumn('created_at', 'integer', (col) => col.notNull())
+      .execute();
+    await db.schema
+      .createIndex('idx_notification_outbox_available')
+      .on('notification_outbox')
+      .columns(['available_at', 'created_at'])
+      .execute();
+
+    await db.schema
+      .createTable('app_state')
+      .addColumn('key', 'varchar', (col) => col.notNull().primaryKey())
+      .addColumn('value', 'text', (col) => col.notNull())
+      .execute();
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('app_state').execute();
+    await db.schema.dropTable('notification_outbox').execute();
+  },
+};

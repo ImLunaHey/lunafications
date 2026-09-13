@@ -24,7 +24,23 @@ export type PostNotifications = {
   from: string;
 };
 
+export type NotificationOutbox = {
+  key: string;
+  recipient: string;
+  payload: string;
+  attempts: number;
+  available_at: number;
+  created_at: number;
+};
+
+export type AppState = {
+  key: string;
+  value: string;
+};
+
 export type DatabaseSchema = {
   settings: Settings;
   post_notifications: PostNotifications;
+  notification_outbox: NotificationOutbox;
+  app_state: AppState;
 };

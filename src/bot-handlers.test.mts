@@ -13,6 +13,7 @@ test('chatMessageHandler', async () => {
         return message;
       },
     }),
+    id: 'message-1',
     text: 'menu',
   } as ChatMessage;
 

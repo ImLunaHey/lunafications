@@ -4,4 +4,4 @@ import { chatMessageHandler, chatErrorHandler } from './bot-handlers.mts';
 export const bot = new Bot({ emitChatEvents: true });
 
 bot.on('message', chatMessageHandler);
-bot.on('error', chatErrorHandler);
+bot.on('error', (error) => chatErrorHandler(error, bot.hasSession));

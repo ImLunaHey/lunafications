@@ -5,6 +5,12 @@ import { logger } from './logger.mts';
 
 const ONE_MINUTE = 60_000;
 
+const fetchJson = async (url: string): Promise<unknown> => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  return response.json();
+};
+
 const handleCache = new TimeCache(ONE_MINUTE);
 
 /**
@@ -16,15 +22,11 @@ export const resolveDidToHandle = async (did: string): Promise<string> => {
   const cachedHandle = handleCache.get(did);
   if (cachedHandle) return cachedHandle;
 
-  if (did.startsWith('did:web:')) {
-    const handle = did.split('did:web:')[1];
-    handleCache.set(did, handle);
-    return handle;
-  }
-
-  const handle = await fetch(`https://plc.directory/${did}`)
-    .then((res) => res.json())
-    .then((data) => data.alsoKnownAs[0].split('at://')[1]);
+  const data = (await fetchJson(
+    `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveIdentity?identifier=${encodeURIComponent(did)}`,
+  )) as { handle?: unknown };
+  if (typeof data.handle !== 'string') throw new Error(`Identity response did not contain a handle for ${did}`);
+  const handle = data.handle;
 
   handleCache.set(did, handle);
 
@@ -39,7 +41,8 @@ const listDetailsCache = new TimeCache<ListView>(ONE_MINUTE);
  * @returns The name of the list.
  */
 export const fetchListDetails = async (did: string, listId: string) => {
-  const cacheList = listDetailsCache.get(listId);
+  const cacheKey = `${did}:${listId}`;
+  const cacheList = listDetailsCache.get(cacheKey);
   if (cacheList) return cacheList;
 
   const list = await publicAgent.app.bsky.graph
@@ -47,7 +50,7 @@ export const fetchListDetails = async (did: string, listId: string) => {
       list: `at://${did}/app.bsky.graph.list/${listId}`,
     })
     .then((list) => list.data.list);
-  listDetailsCache.set(listId, list);
+  listDetailsCache.set(cacheKey, list);
   return list;
 };
 
@@ -60,14 +63,16 @@ const didCache = new TimeCache<string>(ONE_MINUTE);
  */
 export const resolveHandleToDid = async (_handle: string) => {
   try {
-    const handle = _handle.trim().replace('@', '');
+    const handle = _handle.trim().replace(/^@/, '').toLowerCase();
     const cachedDid = didCache.get(handle);
     if (cachedDid) return cachedDid;
 
     logger.info('Fetching profile', { handle });
-    const did = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${handle}`)
-      .then((res) => res.json())
-      .then((data) => data.did);
+    const data = (await fetchJson(
+      `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveIdentity?identifier=${encodeURIComponent(handle)}`,
+    )) as { did?: unknown };
+    if (typeof data.did !== 'string' || !data.did.startsWith('did:')) return null;
+    const did = data.did;
     didCache.set(handle, did);
 
     logger.info('Resolved handle', { handle, did });
