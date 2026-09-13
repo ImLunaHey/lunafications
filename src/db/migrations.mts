@@ -1,4 +1,5 @@
-import { Kysely, Migration, MigrationProvider } from 'kysely';
+import { Kysely } from 'kysely';
+import { Migration, MigrationProvider } from 'kysely/migration';
 
 const migrations: Record<string, Migration> = {};
 
