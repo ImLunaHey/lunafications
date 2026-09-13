@@ -96,6 +96,7 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
       await db.transaction().execute(async (transaction) => {
         await transaction.deleteFrom('settings').where('did', '=', sender.did).execute();
         await transaction.deleteFrom('post_notifications').where('did', '=', sender.did).execute();
+        await transaction.deleteFrom('notification_outbox').where('recipient', '=', sender.did).execute();
       });
       logger.info('Disabled all notifications', { did: sender.did });
       return "You'll no longer receive any notifications.";

@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 vi.mock('./cache.mts', () => ({
   resolveDidToHandle: vi.fn(async () => 'actor.test'),
@@ -17,30 +20,87 @@ describe('durable notification outbox', () => {
     await migrateToLatest(database);
   });
 
+  afterEach(async () => {
+    await database.destroy();
+  });
+
   test('deduplicates the same event for the same recipient', async () => {
-    const message = { type: 'blocked' as const, did: 'did:plc:actor' as const };
+    const message = { type: 'blocked' as const, did: 'did:plc:actor' as const, event: '1:block-1' };
     await addMessage(database, 'did:plc:recipient', message, 100);
     await addMessage(database, 'did:plc:recipient', message, 200);
     expect(await getPendingMessages(database, 200)).toHaveLength(1);
   });
 
   test('keeps the same event separately for different recipients', async () => {
-    const message = { type: 'post' as const, did: 'did:plc:actor' as const, post: 'post-1' };
+    const message = {
+      type: 'post' as const,
+      did: 'did:plc:actor' as const,
+      post: 'post-1',
+      event: '1:post-1',
+    };
     await addMessage(database, 'did:plc:first', message, 100);
     await addMessage(database, 'did:plc:second', message, 100);
     expect(await getPendingMessages(database, 100)).toHaveLength(2);
   });
 
-  test('deletes a notification only after successful delivery', async () => {
-    await addMessage(database, 'did:plc:recipient', { type: 'blocked', did: 'did:plc:actor' }, 100);
+  test('survives a database close and process-style reopen', async () => {
+    await database.destroy();
+    const directory = mkdtempSync(join(tmpdir(), 'lunafications-outbox-'));
+    const location = join(directory, 'test.db');
+    try {
+      database = createDb(location);
+      await migrateToLatest(database);
+      await addMessage(
+        database,
+        'did:plc:recipient',
+        { type: 'blocked', did: 'did:plc:actor', event: '1:block-1' },
+        100,
+      );
+      await database.destroy();
+
+      database = createDb(location);
+      await migrateToLatest(database);
+      expect(await getPendingMessages(database, 100)).toHaveLength(1);
+    } finally {
+      await database.destroy();
+      database = createDb(':memory:');
+      rmSync(directory, { recursive: true });
+    }
+  });
+
+  test('marks a notification delivered only after successful delivery', async () => {
+    await addMessage(
+      database,
+      'did:plc:recipient',
+      { type: 'blocked', did: 'did:plc:actor', event: '1:block-1' },
+      100,
+    );
     const send = vi.fn(async () => undefined);
     await processQueue(database, send, 100);
     expect(send).toHaveBeenCalledOnce();
     expect(await getPendingMessages(database, Number.MAX_SAFE_INTEGER)).toHaveLength(0);
   });
 
+  test('suppresses an inclusive Jetstream replay after successful delivery', async () => {
+    const message = { type: 'blocked' as const, did: 'did:plc:actor' as const, event: '1:block-1' };
+    await addMessage(database, 'did:plc:recipient', message, 100);
+    await processQueue(database, vi.fn(async () => undefined), 100);
+
+    await addMessage(database, 'did:plc:recipient', message, 200);
+
+    expect(await getPendingMessages(database, 200)).toHaveLength(0);
+    const markers = await database.selectFrom('notification_outbox').selectAll().execute();
+    expect(markers).toHaveLength(1);
+    expect(markers[0].delivered_at).toBe(100);
+  });
+
   test('defers a failed notification and retries it later', async () => {
-    await addMessage(database, 'did:plc:recipient', { type: 'blocked', did: 'did:plc:actor' }, 100);
+    await addMessage(
+      database,
+      'did:plc:recipient',
+      { type: 'blocked', did: 'did:plc:actor', event: '1:block-1' },
+      100,
+    );
     const failedSend = vi.fn(async () => {
       throw new Error('temporary failure');
     });

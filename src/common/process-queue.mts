@@ -20,7 +20,7 @@ export const processQueue = async (
   for (const item of pending) {
     try {
       await sendMessage(item.recipient, await messagesToRichText([item.message]));
-      await markMessageSent(database, item.key);
+      await markMessageSent(database, item.key, now);
     } catch (error) {
       await deferMessage(database, item.key, item.attempts, now);
       logger.error('Failed to send message; deferred for retry', { recipient: item.recipient, key: item.key }, error);

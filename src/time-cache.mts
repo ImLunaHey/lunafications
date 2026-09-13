@@ -41,7 +41,6 @@ export class TimeCache<T = string> {
     this.cache.set(key, { value, time: Date.now() });
   }
 
-
   get size() {
     return this.cache.size;
   }

@@ -25,14 +25,14 @@ describe('identity and list lookups', () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ did: 'did:plc:resolved' }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     expect(await resolveHandleToDid(' @Example.COM ')).toBe('did:plc:resolved');
-    expect(fetchMock.mock.calls[0][0]).toContain('identifier=example.com');
+    expect(fetchMock.mock.calls[0][0]).toContain('handle=example.com');
   });
 
-  test('resolves did:web values through the identity service', async () => {
+  test('resolves did:web values through the profile service', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ handle: 'canonical.test' }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     expect(await resolveDidToHandle('did:web:alias.test')).toBe('canonical.test');
-    expect(fetchMock.mock.calls[0][0]).toContain('identifier=did%3Aweb%3Aalias.test');
+    expect(fetchMock.mock.calls[0][0]).toContain('actor=did%3Aweb%3Aalias.test');
   });
 
   test('returns null for failed identity requests', async () => {

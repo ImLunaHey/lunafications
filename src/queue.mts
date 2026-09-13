@@ -10,6 +10,8 @@ type BlockedMessage = {
    * The DID of the account that did the blocking.
    */
   did: `did:${string}`;
+  /** Jetstream timestamp identifying this event. */
+  event: string;
 };
 
 type ListMessage = {
@@ -25,6 +27,8 @@ type ListMessage = {
    * The DID of the account that created the starter pack.
    */
   did: `did:${string}`;
+  /** Jetstream timestamp identifying this event. */
+  event: string;
 };
 
 type UserPostMessage = {
@@ -40,6 +44,8 @@ type UserPostMessage = {
    * The post ID.
    */
   post: string;
+  /** Jetstream timestamp identifying this event. */
+  event: string;
 };
 
 export type Message = BlockedMessage | ListMessage | UserPostMessage;
@@ -97,10 +103,10 @@ export const messagesToRichText = async (messages: Message[]): Promise<RichText>
 export const resolveMessageKey = (recipient: string, message: Message): string => {
   switch (message.type) {
     case 'blocked':
-      return `${recipient}:${message.type}:${message.did}`;
+      return `${recipient}:${message.type}:${message.did}:${message.event}`;
     case 'list':
-      return `${recipient}:${message.type}:${message.did}:${message.list}`;
+      return `${recipient}:${message.type}:${message.did}:${message.event}`;
     case 'post':
-      return `${recipient}:${message.type}:${message.did}:${message.post}`;
+      return `${recipient}:${message.type}:${message.did}:${message.event}`;
   }
 };

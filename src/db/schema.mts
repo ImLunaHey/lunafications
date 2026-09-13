@@ -31,6 +31,7 @@ export type NotificationOutbox = {
   attempts: number;
   available_at: number;
   created_at: number;
+  delivered_at: number | null;
 };
 
 export type AppState = {

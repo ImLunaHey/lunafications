@@ -25,16 +25,24 @@ test('converting messages to rich text', async () => {
     {
       type: 'blocked',
       did: 'did:plc:k6acu4chiwkixvdedcmdgmal',
+      event: '1:block-1',
     },
     {
       type: 'blocked',
       did: 'did:plc:k6acu4chiwkixvdedcmdgmal',
+      event: '2:block-2',
     },
     {
       type: 'blocked',
       did: 'did:web:safety.lukeacl.com',
+      event: '3:block-3',
     },
-    { type: 'list', did: 'did:plc:k6acu4chiwkixvdedcmdgmal', list: '3lh7m34kh672k' },
+    {
+      type: 'list',
+      did: 'did:plc:k6acu4chiwkixvdedcmdgmal',
+      list: '3lh7m34kh672k',
+      event: '4:item-1',
+    },
   ]).then((richText) => richText.text);
 
   expect(richText).toBe(outdent`
@@ -51,6 +59,7 @@ test('message keys include the recipient and event identity', () => {
       type: 'list',
       did: 'did:plc:actor',
       list: 'same-rkey',
+      event: '123:list-item-rkey',
     }),
-  ).toBe('did:plc:recipient:list:did:plc:actor:same-rkey');
+  ).toBe('did:plc:recipient:list:did:plc:actor:123:list-item-rkey');
 });

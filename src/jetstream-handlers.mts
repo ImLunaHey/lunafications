@@ -1,9 +1,9 @@
 import { CommitEvent } from '@skyware/jetstream';
 import { addMessage } from './outbox.mts';
-import { db } from './db/index.mts';
+import { db, type Database } from './db/index.mts';
 import { logger } from './logger.mts';
 
-export const jetstreamBlockHandler = async (event: CommitEvent<'app.bsky.graph.block'>) => {
+export const jetstreamBlockHandler = async (event: CommitEvent<'app.bsky.graph.block'>, database: Database = db) => {
   try {
     if (event.commit.operation !== 'create') return;
 
@@ -14,13 +14,14 @@ export const jetstreamBlockHandler = async (event: CommitEvent<'app.bsky.graph.b
     const did = event.did;
 
     // check if the account wants to receive block notifications
-    const settings = await db.selectFrom('settings').selectAll().where('did', '=', subject).executeTakeFirst();
+    const settings = await database.selectFrom('settings').selectAll().where('did', '=', subject).executeTakeFirst();
     if (!settings?.blocks) return;
 
     // add message to the queue
-    await addMessage(db, subject, {
+    await addMessage(database, subject, {
       type: 'blocked',
       did: did,
+      event: `${event.time_us}:${event.commit.rkey}`,
     });
   } catch (error) {
     logger.error('Failed to process block event:', error);
@@ -28,7 +29,10 @@ export const jetstreamBlockHandler = async (event: CommitEvent<'app.bsky.graph.b
   }
 };
 
-export const jetstreamListItemHandler = async (event: CommitEvent<'app.bsky.graph.listitem'>) => {
+export const jetstreamListItemHandler = async (
+  event: CommitEvent<'app.bsky.graph.listitem'>,
+  database: Database = db,
+) => {
   try {
     if (event.commit.operation !== 'create') return;
 
@@ -36,17 +40,18 @@ export const jetstreamListItemHandler = async (event: CommitEvent<'app.bsky.grap
     const subject = event.commit.record.subject;
 
     // check if the account wants to receive list notifications
-    const settings = await db.selectFrom('settings').selectAll().where('did', '=', subject).executeTakeFirst();
+    const settings = await database.selectFrom('settings').selectAll().where('did', '=', subject).executeTakeFirst();
     if (!settings?.lists) return;
 
     // account who owns the list
     const did = event.did;
 
     // add message to the queue
-    await addMessage(db, subject, {
+    await addMessage(database, subject, {
       type: 'list',
       list: event.commit.record.list.split('/').pop()!,
       did,
+      event: `${event.time_us}:${event.commit.rkey}`,
     });
   } catch (error) {
     logger.error('Failed to process list event:', error);
@@ -54,7 +59,10 @@ export const jetstreamListItemHandler = async (event: CommitEvent<'app.bsky.grap
   }
 };
 
-export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed.post'>) => {
+export const jetstreamFeedPostHandler = async (
+  event: CommitEvent<'app.bsky.feed.post'>,
+  database: Database = db,
+) => {
   try {
     if (event.commit.operation !== 'create') return;
 
@@ -68,15 +76,20 @@ export const jetstreamFeedPostHandler = async (event: CommitEvent<'app.bsky.feed
     if (event.commit.record.reply) return;
 
     // check who wants to receive post notifications about this account
-    const accountsToNotify = await db.selectFrom('post_notifications').select('did').where('from', '=', from).execute();
+    const accountsToNotify = await database
+      .selectFrom('post_notifications')
+      .select('did')
+      .where('from', '=', from)
+      .execute();
     if (accountsToNotify.length === 0) return;
 
     for (const accounts of accountsToNotify) {
       // add message to the queue
-      await addMessage(db, accounts.did, {
+      await addMessage(database, accounts.did, {
         type: 'post',
         post: id,
         did: from,
+        event: `${event.time_us}:${event.commit.rkey}`,
       });
     }
   } catch (error) {

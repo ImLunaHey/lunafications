@@ -14,7 +14,8 @@ beforeEach(async () => {
 
 const blockEvent = {
   did: 'did:plc:blocker',
-  commit: { operation: 'create', record: { subject: 'did:plc:recipient' } },
+  time_us: 100,
+  commit: { operation: 'create', rkey: 'block-1', record: { subject: 'did:plc:recipient' } },
 } as CommitEvent<'app.bsky.graph.block'>;
 
 describe('Jetstream handlers', () => {
@@ -24,7 +25,11 @@ describe('Jetstream handlers', () => {
 
     await db.insertInto('settings').values({ did: 'did:plc:recipient', blocks: 1, lists: 0 }).execute();
     await jetstreamBlockHandler(blockEvent);
-    expect((await getPendingMessages(db))[0].message).toEqual({ type: 'blocked', did: 'did:plc:blocker' });
+    expect((await getPendingMessages(db))[0].message).toEqual({
+      type: 'blocked',
+      did: 'did:plc:blocker',
+      event: '100:block-1',
+    });
   });
 
   test('ignores non-create block events', async () => {
@@ -36,8 +41,10 @@ describe('Jetstream handlers', () => {
     await db.insertInto('settings').values({ did: 'did:plc:recipient', blocks: 0, lists: 1 }).execute();
     await jetstreamListItemHandler({
       did: 'did:plc:list-owner',
+      time_us: 200,
       commit: {
         operation: 'create',
+        rkey: 'item-1',
         record: { subject: 'did:plc:recipient', list: 'at://did:plc:list-owner/app.bsky.graph.list/list-1' },
       },
     } as CommitEvent<'app.bsky.graph.listitem'>);
@@ -45,6 +52,7 @@ describe('Jetstream handlers', () => {
       type: 'list',
       did: 'did:plc:list-owner',
       list: 'list-1',
+      event: '200:item-1',
     });
   });
 
@@ -58,6 +66,7 @@ describe('Jetstream handlers', () => {
       .execute();
     const event = {
       did: 'did:plc:author',
+      time_us: 300,
       commit: { operation: 'create', rkey: 'post-1', record: { text: 'hello' } },
     } as CommitEvent<'app.bsky.feed.post'>;
     await jetstreamFeedPostHandler(event);
@@ -68,6 +77,7 @@ describe('Jetstream handlers', () => {
 
     await jetstreamFeedPostHandler({
       ...event,
+      time_us: 301,
       commit: { ...event.commit, rkey: 'reply-1', record: { text: 'reply', reply: {} } },
     } as CommitEvent<'app.bsky.feed.post'>);
     expect(await getPendingMessages(db)).toHaveLength(2);

@@ -23,7 +23,7 @@ export const resolveDidToHandle = async (did: string): Promise<string> => {
   if (cachedHandle) return cachedHandle;
 
   const data = (await fetchJson(
-    `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveIdentity?identifier=${encodeURIComponent(did)}`,
+    `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`,
   )) as { handle?: unknown };
   if (typeof data.handle !== 'string') throw new Error(`Identity response did not contain a handle for ${did}`);
   const handle = data.handle;
@@ -69,7 +69,7 @@ export const resolveHandleToDid = async (_handle: string) => {
 
     logger.info('Fetching profile', { handle });
     const data = (await fetchJson(
-      `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveIdentity?identifier=${encodeURIComponent(handle)}`,
+      `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`,
     )) as { did?: unknown };
     if (typeof data.did !== 'string' || !data.did.startsWith('did:')) return null;
     const did = data.did;

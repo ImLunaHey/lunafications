@@ -49,11 +49,17 @@ migrations['003'] = {
       .addColumn('attempts', 'integer', (col) => col.notNull().defaultTo(0))
       .addColumn('available_at', 'integer', (col) => col.notNull())
       .addColumn('created_at', 'integer', (col) => col.notNull())
+      .addColumn('delivered_at', 'integer')
       .execute();
     await db.schema
       .createIndex('idx_notification_outbox_available')
       .on('notification_outbox')
       .columns(['available_at', 'created_at'])
+      .execute();
+    await db.schema
+      .createIndex('idx_notification_outbox_delivered')
+      .on('notification_outbox')
+      .column('delivered_at')
       .execute();
 
     await db.schema
