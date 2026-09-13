@@ -52,6 +52,20 @@ For deployment on platforms like Railway, it's recommended to:
 2. Use a persistent storage path for your SQLite database, e.g., `/data/bsky.db`
 3. Mount a volume to the `/data` directory to ensure database persistence across redeployments
 
+### Private operations dashboard
+
+The service also listens on `PORT` (Railway supplies this automatically, otherwise it defaults to `3000`). `/health` is always available. The dashboard remains disabled unless both of its secrets are configured.
+
+Generate fresh secrets locally:
+
+```bash
+npm run dashboard:generate-secrets
+```
+
+Add both printed values to Railway as `DASHBOARD_SESSION_SECRET` and `DASHBOARD_OAUTH_PRIVATE_KEY`. Railway's `RAILWAY_PUBLIC_DOMAIN` is used automatically for OAuth. For another host, set `DASHBOARD_PUBLIC_URL` to its public HTTPS origin, without a path.
+
+The dashboard uses Bluesky OAuth and only accepts the immutable DID belonging to `@imlunahey.com`. Other accounts are rejected even if the handle changes or is impersonated. Sessions last 12 hours, are stored as keyed hashes, and the dashboard is read-only.
+
 ## Usage
 
 The bot provides instructions to end-users through its profile bio and responds to the following commands:

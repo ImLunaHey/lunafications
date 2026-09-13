@@ -74,3 +74,29 @@ migrations['003'] = {
     await db.schema.dropTable('notification_outbox').execute();
   },
 };
+
+migrations['004'] = {
+  async up(db: Kysely<unknown>) {
+    for (const table of ['oauth_state', 'oauth_session'] as const) {
+      await db.schema
+        .createTable(table)
+        .addColumn('key', 'varchar', (col) => col.notNull().primaryKey())
+        .addColumn('value', 'text', (col) => col.notNull())
+        .addColumn('expires_at', 'integer')
+        .execute();
+    }
+    await db.schema
+      .createTable('dashboard_sessions')
+      .addColumn('token_hash', 'varchar', (col) => col.notNull().primaryKey())
+      .addColumn('did', 'varchar', (col) => col.notNull())
+      .addColumn('created_at', 'integer', (col) => col.notNull())
+      .addColumn('expires_at', 'integer', (col) => col.notNull())
+      .execute();
+    await db.schema.createIndex('idx_dashboard_sessions_expiry').on('dashboard_sessions').column('expires_at').execute();
+  },
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('dashboard_sessions').execute();
+    await db.schema.dropTable('oauth_session').execute();
+    await db.schema.dropTable('oauth_state').execute();
+  },
+};

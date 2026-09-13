@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run test:run",
     "coverage": "vitest run --coverage",
-    "coverage:watch": "vitest --coverage"
+    "coverage:watch": "vitest --coverage",
+    "dashboard:generate-secrets": "tsx src/dashboard/generate-secrets.mts"
   },
   "keywords": [],
   "author": "",

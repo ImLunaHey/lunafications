@@ -2,6 +2,7 @@ import { Jetstream, type CommitEvent } from '@skyware/jetstream';
 import { jetstreamBlockHandler, jetstreamListItemHandler, jetstreamFeedPostHandler } from './jetstream-handlers.mts';
 import { db, type Database } from './db/index.mts';
 import { logger } from './logger.mts';
+import { runtimeState } from './runtime-state.mts';
 
 const CURSOR_KEY = 'jetstream_cursor';
 
@@ -35,6 +36,7 @@ export const startJetstream = async () => {
 
   let pipeline = Promise.resolve();
   jetstream.on('commit', (event) => {
+    runtimeState.jetstreamLastEventAt = Date.now();
     pipeline = pipeline.then(() => processJetstreamCommit(event));
     void pipeline.catch((error) => {
       logger.error('Failed to process Jetstream event', { cursor: event.time_us }, error);
@@ -42,7 +44,17 @@ export const startJetstream = async () => {
       process.exit(1);
     });
   });
-  jetstream.on('error', (error: unknown) => logger.error('Jetstream encountered an error', error));
+  jetstream.on('open', () => {
+    runtimeState.jetstreamConnected = true;
+    runtimeState.jetstreamLastError = null;
+  });
+  jetstream.on('close', () => {
+    runtimeState.jetstreamConnected = false;
+  });
+  jetstream.on('error', (error: unknown) => {
+    runtimeState.jetstreamLastError = error instanceof Error ? error.message : String(error);
+    logger.error('Jetstream encountered an error', error);
+  });
   jetstream.start();
   return jetstream;
 };

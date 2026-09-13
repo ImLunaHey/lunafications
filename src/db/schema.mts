@@ -39,9 +39,25 @@ export type AppState = {
   value: string;
 };
 
+export type OAuthValue = {
+  key: string;
+  value: string;
+  expires_at: number | null;
+};
+
+export type DashboardSession = {
+  token_hash: string;
+  did: string;
+  created_at: number;
+  expires_at: number;
+};
+
 export type DatabaseSchema = {
   settings: Settings;
   post_notifications: PostNotifications;
   notification_outbox: NotificationOutbox;
   app_state: AppState;
+  oauth_state: OAuthValue;
+  oauth_session: OAuthValue;
+  dashboard_sessions: DashboardSession;
 };

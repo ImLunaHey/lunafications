@@ -21,6 +21,9 @@ test('upgrades an existing database without losing subscriptions', async () => {
     expect(await database.selectFrom('post_notifications').selectAll().execute()).toHaveLength(1);
     expect(await database.selectFrom('notification_outbox').selectAll().execute()).toEqual([]);
     expect(await database.selectFrom('app_state').selectAll().execute()).toEqual([]);
+    expect(await database.selectFrom('oauth_state').selectAll().execute()).toEqual([]);
+    expect(await database.selectFrom('oauth_session').selectAll().execute()).toEqual([]);
+    expect(await database.selectFrom('dashboard_sessions').selectAll().execute()).toEqual([]);
   } finally {
     await database.destroy();
   }

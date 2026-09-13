@@ -3,6 +3,7 @@ import { db, type Database } from '../db/index.mts';
 import { messagesToRichText } from '../queue.mts';
 import { deferMessage, getPendingMessages, markMessageSent } from '../outbox.mts';
 import { logger } from '../logger.mts';
+import { runtimeState } from '../runtime-state.mts';
 
 type MessageSender = (recipient: string, text: Awaited<ReturnType<typeof messagesToRichText>>) => Promise<void>;
 
@@ -45,6 +46,7 @@ export const processQueue = async (
   sendMessage: MessageSender = defaultSender,
   now = Date.now(),
 ) => {
+  runtimeState.lastQueueRunAt = now;
   const pending = await getPendingMessages(database, now);
   const disabledRecipients = new Set<string>();
   for (const item of pending) {
@@ -58,6 +60,8 @@ export const processQueue = async (
         type: item.message.type,
         attempt: item.attempts + 1,
       });
+      runtimeState.lastDeliveryAt = now;
+      runtimeState.lastDeliveryError = null;
     } catch (error) {
       if (isBlockedActorError(error)) {
         const removed = await disableBlockedRecipient(database, item.recipient);
@@ -71,6 +75,7 @@ export const processQueue = async (
       }
       await deferMessage(database, item.key, item.attempts, now);
       logger.error('Failed to send message; deferred for retry', { recipient: item.recipient, key: item.key }, error);
+      runtimeState.lastDeliveryError = error instanceof Error ? error.message : String(error);
     }
   }
 };
