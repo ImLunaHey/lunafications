@@ -18,23 +18,31 @@ vi.mock('./cache.mts', () => ({
   })),
 }));
 
-import { addMessage, getMessages, messagesToRichText } from './queue.mts';
+import { messagesToRichText, resolveMessageKey } from './queue.mts';
 
 test('converting messages to rich text', async () => {
   const richText = await messagesToRichText([
     {
       type: 'blocked',
       did: 'did:plc:k6acu4chiwkixvdedcmdgmal',
+      event: '1:block-1',
     },
     {
       type: 'blocked',
       did: 'did:plc:k6acu4chiwkixvdedcmdgmal',
+      event: '2:block-2',
     },
     {
       type: 'blocked',
       did: 'did:web:safety.lukeacl.com',
+      event: '3:block-3',
     },
-    { type: 'list', did: 'did:plc:k6acu4chiwkixvdedcmdgmal', list: '3lh7m34kh672k' },
+    {
+      type: 'list',
+      did: 'did:plc:k6acu4chiwkixvdedcmdgmal',
+      list: '3lh7m34kh672k',
+      event: '4:item-1',
+    },
   ]).then((richText) => richText.text);
 
   expect(richText).toBe(outdent`
@@ -45,26 +53,13 @@ test('converting messages to rich text', async () => {
   `);
 });
 
-test('adding duplicate messages only keeps the latest instance', () => {
-  const queueName = 'did:plc:a3awelxrffaersstz2u3ksjt';
-
-  const firstMessage = {
-    type: 'list' as const,
-    did: 'did:plc:a3awelxrffaersstz2u3ksjt',
-    list: '3lh7m34kh672k',
-  };
-
-  const secondMessage = {
-    type: 'list' as const,
-    did: 'did:plc:a3awelxrffaersstz2u3ksjt',
-    list: '3lh7m34kh672k',
-  };
-
-  addMessage(queueName, firstMessage);
-  addMessage(queueName, secondMessage);
-
-  const messages = getMessages(queueName);
-
-  expect(messages).toHaveLength(1);
-  expect(messages[0]).toStrictEqual(secondMessage);
+test('message keys include the recipient and event identity', () => {
+  expect(
+    resolveMessageKey('did:plc:recipient', {
+      type: 'list',
+      did: 'did:plc:actor',
+      list: 'same-rkey',
+      event: '123:list-item-rkey',
+    }),
+  ).toBe('did:plc:recipient:list:did:plc:actor:123:list-item-rkey');
 });

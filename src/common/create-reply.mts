@@ -5,7 +5,7 @@ import { outdent } from 'outdent';
 import { logger } from '../logger.mts';
 
 export const createReply = async (sender: Profile, message: ChatMessage) => {
-  const [command = '', subCommand = '', ...props] = message.text.toLowerCase().split(' ');
+  const [command = '', subCommand = '', ...props] = message.text.trim().toLowerCase().split(/\s+/);
   const fullCommand = `${command} ${subCommand}`.trim();
   switch (fullCommand) {
     case 'menu': {
@@ -93,8 +93,12 @@ export const createReply = async (sender: Profile, message: ChatMessage) => {
       return `You will no longer be notified when ${handle} makes a post.`;
     }
     case 'hide all': {
-      const result = await db.deleteFrom('settings').where('did', '=', sender.did).executeTakeFirst();
-      logger.info('Updated settings', { did: sender.did, result });
+      await db.transaction().execute(async (transaction) => {
+        await transaction.deleteFrom('settings').where('did', '=', sender.did).execute();
+        await transaction.deleteFrom('post_notifications').where('did', '=', sender.did).execute();
+        await transaction.deleteFrom('notification_outbox').where('recipient', '=', sender.did).execute();
+      });
+      logger.info('Disabled all notifications', { did: sender.did });
       return "You'll no longer receive any notifications.";
     }
     case 'settings': {

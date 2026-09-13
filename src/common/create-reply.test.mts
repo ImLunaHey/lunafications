@@ -1,12 +1,28 @@
 import { ChatMessage, Profile } from '@skyware/bot';
+import { beforeEach, vi } from 'vitest';
+
+vi.mock('../cache.mts', () => ({
+  resolveHandleToDid: vi.fn(async (handle: string) =>
+    handle === '@imlunahey.com' ? 'did:plc:monitored' : null,
+  ),
+  resolveDidToHandle: vi.fn(async () => 'imlunahey.com'),
+}));
+
 import { createReply } from './create-reply.mts';
 import { test, expect } from 'vitest';
 import { db, migrateToLatest } from '../db/index.mts';
+import { addMessage } from '../outbox.mts';
 import { outdent } from 'outdent';
 
 await migrateToLatest(db);
 
 const did = 'did:plc:k6acu4chiwkixvdedcmdgmal';
+
+beforeEach(async () => {
+  await db.deleteFrom('post_notifications').execute();
+  await db.deleteFrom('settings').execute();
+  await db.deleteFrom('notification_outbox').execute();
+});
 
 test('createReply (menu)', async () => {
   const sender = { did } as unknown as Profile;
@@ -50,10 +66,22 @@ test('createReply (notify all)', async () => {
 });
 
 test('createReply (hide all)', async () => {
+  await db.insertInto('settings').values({ did, blocks: 1, lists: 1 }).execute();
+  await db.insertInto('post_notifications').values({ did, from: 'did:plc:monitored' }).execute();
+  await addMessage(db, did, { type: 'blocked', did: 'did:plc:blocker', event: '1:block-1' });
   const sender = { did } as unknown as Profile;
   const message = { text: 'hide all' } as unknown as ChatMessage;
   const reply = await createReply(sender, message);
   expect(reply).toBe(`You'll no longer receive any notifications.`);
+  expect(await db.selectFrom('settings').selectAll().where('did', '=', did).execute()).toEqual([]);
+  expect(await db.selectFrom('post_notifications').selectAll().where('did', '=', did).execute()).toEqual([]);
+  expect(await db.selectFrom('notification_outbox').selectAll().where('recipient', '=', did).execute()).toEqual([]);
+});
+
+test('createReply accepts surrounding and repeated whitespace', async () => {
+  const sender = { did } as unknown as Profile;
+  const message = { text: '  notify    blocks  ' } as unknown as ChatMessage;
+  expect(await createReply(sender, message)).toBe("You'll now receive notifications when someone blocks you.");
 });
 
 test('createReply (settings)', async () => {

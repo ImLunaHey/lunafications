@@ -5,6 +5,9 @@
   "scripts": {
     "start": "npx tsx ./src/index.mts",
     "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run test:run",
     "coverage": "vitest run --coverage",
     "coverage:watch": "vitest --coverage"
   },

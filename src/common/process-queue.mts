@@ -1,69 +1,42 @@
 import { bot } from '../bot.mts';
-import { getMessages, getQueueNames, messagesToRichText } from '../queue.mts';
+import { db, type Database } from '../db/index.mts';
+import { messagesToRichText } from '../queue.mts';
+import { deferMessage, getPendingMessages, markMessageSent } from '../outbox.mts';
 import { logger } from '../logger.mts';
-import { TimeCache } from '../time-cache.mts';
 
-const sentMessages = new TimeCache<boolean>(60 * 60 * 1000); // 1 hour TTL
+type MessageSender = (recipient: string, text: Awaited<ReturnType<typeof messagesToRichText>>) => Promise<void>;
 
-export const processQueue = async () => {
-  const queues = getQueueNames();
-  if (queues.length === 0) {
-    setTimeout(processQueue, 30_000);
-    return;
-  }
+const defaultSender: MessageSender = async (recipient, text) => {
+  const conversation = await bot.getConversationForMembers([recipient]);
+  await conversation.sendMessage({ text });
+};
 
-  for (const queue of queues) {
-    const messages = getMessages(queue);
-    if (messages.length === 0) continue;
-
-    const uniqueMessages = messages.filter((message) => {
-      let messageKey: string;
-      switch (message.type) {
-        case 'blocked':
-          messageKey = `${queue}:${message.type}:${message.did}`;
-          break;
-        case 'list':
-          messageKey = `${queue}:${message.type}:${message.did}:${message.list}`;
-          break;
-        case 'post':
-          messageKey = `${queue}:${message.type}:${message.did}:${message.post}`;
-          break;
-      }
-
-      if (sentMessages.get(messageKey)) {
-        logger.debug('Skipping duplicate message', { messageKey });
-        return false;
-      }
-      return true;
-    });
-
-    if (uniqueMessages.length === 0) continue;
-    logger.info('Sending messages for queue', { queue, count: uniqueMessages.length });
-
-    for (const message of uniqueMessages) {
-      try {
-        const conversation = await bot.getConversationForMembers([queue]);
-        await conversation.sendMessage({ text: await messagesToRichText([message]) });
-
-        // Mark message as sent
-        let messageKey: string;
-        switch (message.type) {
-          case 'blocked':
-            messageKey = `${queue}:${message.type}:${message.did}`;
-            break;
-          case 'list':
-            messageKey = `${queue}:${message.type}:${message.did}:${message.list}`;
-            break;
-          case 'post':
-            messageKey = `${queue}:${message.type}:${message.did}:${message.post}`;
-            break;
-        }
-        sentMessages.set(messageKey, true);
-      } catch (error) {
-        logger.error('Failed to send message', { queue }, error);
-      }
+export const processQueue = async (
+  database: Database = db,
+  sendMessage: MessageSender = defaultSender,
+  now = Date.now(),
+) => {
+  const pending = await getPendingMessages(database, now);
+  for (const item of pending) {
+    try {
+      await sendMessage(item.recipient, await messagesToRichText([item.message]));
+      await markMessageSent(database, item.key, now);
+    } catch (error) {
+      await deferMessage(database, item.key, item.attempts, now);
+      logger.error('Failed to send message; deferred for retry', { recipient: item.recipient, key: item.key }, error);
     }
   }
+};
 
-  setTimeout(processQueue, 30_000);
+export const startQueueProcessor = (intervalMs = 30_000) => {
+  const run = async () => {
+    try {
+      await processQueue();
+    } catch (error) {
+      logger.error('Queue processing failed', error);
+    } finally {
+      setTimeout(run, intervalMs);
+    }
+  };
+  setTimeout(run, intervalMs);
 };
