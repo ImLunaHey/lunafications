@@ -11,6 +11,7 @@ vi.mock('./cache.mts', () => ({
 import { createDb, migrateToLatest, type Database } from './db/index.mts';
 import { addMessage, getPendingMessages } from './outbox.mts';
 import { processQueue } from './common/process-queue.mts';
+import { logger } from './logger.mts';
 
 describe('durable notification outbox', () => {
   let database: Database;
@@ -21,14 +22,26 @@ describe('durable notification outbox', () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await database.destroy();
   });
 
   test('deduplicates the same event for the same recipient', async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
     const message = { type: 'blocked' as const, did: 'did:plc:actor' as const, event: '1:block-1' };
-    await addMessage(database, 'did:plc:recipient', message, 100);
-    await addMessage(database, 'did:plc:recipient', message, 200);
+    expect(await addMessage(database, 'did:plc:recipient', message, 100)).toBe(true);
+    expect(await addMessage(database, 'did:plc:recipient', message, 200)).toBe(false);
     expect(await getPendingMessages(database, 200)).toHaveLength(1);
+    expect(info).toHaveBeenNthCalledWith(1, 'Notification queued', {
+      key: 'did:plc:recipient:blocked:did:plc:actor:1:block-1',
+      recipient: 'did:plc:recipient',
+      type: 'blocked',
+    });
+    expect(info).toHaveBeenNthCalledWith(2, 'Duplicate notification ignored', {
+      key: 'did:plc:recipient:blocked:did:plc:actor:1:block-1',
+      recipient: 'did:plc:recipient',
+      type: 'blocked',
+    });
   });
 
   test('keeps the same event separately for different recipients', async () => {
@@ -69,6 +82,7 @@ describe('durable notification outbox', () => {
   });
 
   test('marks a notification delivered only after successful delivery', async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
     await addMessage(
       database,
       'did:plc:recipient',
@@ -78,6 +92,12 @@ describe('durable notification outbox', () => {
     const send = vi.fn(async () => undefined);
     await processQueue(database, send, 100);
     expect(send).toHaveBeenCalledOnce();
+    expect(info).toHaveBeenCalledWith('Notification delivered', {
+      key: 'did:plc:recipient:blocked:did:plc:actor:1:block-1',
+      recipient: 'did:plc:recipient',
+      type: 'blocked',
+      attempt: 1,
+    });
     expect(await getPendingMessages(database, Number.MAX_SAFE_INTEGER)).toHaveLength(0);
   });
 
