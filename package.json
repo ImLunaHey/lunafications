@@ -1,7 +1,7 @@
 {
   "name": "bsky-notifications",
   "version": "1.0.0",
-  "packageManager": "pnpm@10.32.1",
+  "packageManager": "pnpm@12.4.1",
   "main": "index.js",
   "scripts": {
     "start": "tsx ./src/index.mts",

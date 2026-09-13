@@ -14,7 +14,7 @@ A Bluesky bot that notifies you when you get blocked, added to lists, or when sp
 ### Prerequisites
 
 - Node.js (v22+)
-- pnpm 10
+- pnpm 12
 
 ### Installation
 
