@@ -59,7 +59,7 @@ The service also listens on `PORT` (Railway supplies this automatically, otherwi
 Generate fresh secrets locally:
 
 ```bash
-npm run dashboard:generate-secrets
+pnpm run dashboard:generate-secrets
 ```
 
 Add both printed values to Railway as `DASHBOARD_SESSION_SECRET` and `DASHBOARD_OAUTH_PRIVATE_KEY`. Railway's `RAILWAY_PUBLIC_DOMAIN` is used automatically for OAuth. For another host, set `DASHBOARD_PUBLIC_URL` to its public HTTPS origin, without a path.
