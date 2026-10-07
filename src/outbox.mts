@@ -53,11 +53,26 @@ export const markMessageSent = async (db: Database, key: string, now = Date.now(
   await db.updateTable('notification_outbox').set({ delivered_at: now }).where('key', '=', key).execute();
 };
 
-export const deferMessage = async (db: Database, key: string, attempts: number, now = Date.now()) => {
+export const deferMessage = async (
+  db: Database,
+  key: string,
+  attempts: number,
+  now = Date.now(),
+  notBefore = now,
+) => {
   const delay = Math.min(RETRY_BASE_MS * 2 ** Math.min(attempts, 10), RETRY_MAX_MS);
   await db
     .updateTable('notification_outbox')
-    .set({ attempts: attempts + 1, available_at: now + delay })
+    .set({ attempts: attempts + 1, available_at: Math.max(now + delay, notBefore) })
     .where('key', '=', key)
+    .execute();
+};
+
+export const deferPendingMessagesUntil = async (db: Database, availableAt: number) => {
+  await db
+    .updateTable('notification_outbox')
+    .set({ available_at: availableAt })
+    .where('delivered_at', 'is', null)
+    .where('available_at', '<', availableAt)
     .execute();
 };

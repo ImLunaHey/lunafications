@@ -12,6 +12,7 @@ import { createDb, migrateToLatest, type Database } from './db/index.mts';
 import { addMessage, getPendingMessages } from './outbox.mts';
 import {
   getPermanentRecipientFailure,
+  getRateLimitBackoffMs,
   isBlockedActorError,
   processQueue,
 } from './common/process-queue.mts';
@@ -137,6 +138,43 @@ describe('durable notification outbox', () => {
 
     await processQueue(database, vi.fn(async () => undefined), 30_100);
     expect(await getPendingMessages(database, Number.MAX_SAFE_INTEGER)).toHaveLength(0);
+  });
+
+  test('pauses the queue when message delivery is rate limited', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    await addMessage(database, 'did:plc:first', { type: 'blocked', did: 'did:plc:actor', event: '1:a' }, 100);
+    await addMessage(database, 'did:plc:second', { type: 'blocked', did: 'did:plc:actor', event: '2:b' }, 101);
+    const rateLimit = Object.assign(new Error('Rate Limit Exceeded'), { kind: 'RateLimitExceeded' });
+    const send = vi.fn(async () => {
+      throw new Error('Failed to send message.', { cause: rateLimit });
+    });
+
+    await processQueue(database, send, 101);
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(await getPendingMessages(database, 60_100)).toHaveLength(0);
+    const pending = await getPendingMessages(database, 60_101);
+    expect(pending).toHaveLength(2);
+    expect(pending.map(({ attempts }) => attempts)).toEqual([1, 0]);
+    expect(warn).toHaveBeenCalledWith(
+      'Message delivery rate limited; queue paused',
+      {
+        recipient: 'did:plc:first',
+        key: 'did:plc:first:blocked:did:plc:actor:1:a',
+        retryAt: '1970-01-01T00:01:00.101Z',
+        retryAfterMs: 60_000,
+      },
+      expect.any(Error),
+    );
+  });
+
+  test('uses server rate-limit reset headers with a safety buffer', () => {
+    const error = Object.assign(new Error('rate limited'), {
+      status: 429,
+      headers: new Headers({ 'rate-limit-reset': '120' }),
+    });
+
+    expect(getRateLimitBackoffMs(error, 100_000)).toBe(25_000);
   });
 
   test('disables a blocked recipient and removes all of their pending work', async () => {
