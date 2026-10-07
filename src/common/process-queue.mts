@@ -1,7 +1,7 @@
 import { bot } from '../bot.mts';
 import { db, type Database } from '../db/index.mts';
 import { messagesToRichText } from '../queue.mts';
-import { deferMessage, getPendingMessages, markMessageSent } from '../outbox.mts';
+import { deferMessage, deferPendingMessagesUntil, getPendingMessages, markMessageSent } from '../outbox.mts';
 import { logger } from '../logger.mts';
 import { runtimeState } from '../runtime-state.mts';
 
@@ -13,6 +13,56 @@ const defaultSender: MessageSender = async (recipient, text) => {
 };
 
 type PermanentRecipientFailure = 'blocked_actor' | 'recipient_not_found';
+
+const DEFAULT_RATE_LIMIT_BACKOFF_MS = 60_000;
+const MAX_RATE_LIMIT_BACKOFF_MS = 25 * 60 * 60 * 1000;
+const RATE_LIMIT_RESET_BUFFER_MS = 5_000;
+
+const getHeader = (headers: unknown, name: string): string | null => {
+  if (!headers || typeof headers !== 'object') return null;
+  if ('get' in headers && typeof headers.get === 'function') {
+    const value = headers.get(name);
+    return typeof value === 'string' ? value : null;
+  }
+  const record = headers as Record<string, unknown>;
+  const value = Object.entries(record).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
+  return typeof value === 'string' ? value : null;
+};
+
+export const getRateLimitBackoffMs = (error: unknown, now = Date.now()): number | null => {
+  let current = error;
+  for (let depth = 0; depth < 10 && current && typeof current === 'object'; depth++) {
+    const candidate = current as { kind?: unknown; status?: unknown; headers?: unknown; cause?: unknown };
+    if (candidate.kind === 'RateLimitExceeded' || candidate.status === 429) {
+      const resetHeader =
+        getHeader(candidate.headers, 'rate-limit-reset') ?? getHeader(candidate.headers, 'ratelimit-reset');
+      const resetSeconds = resetHeader === null ? Number.NaN : Number(resetHeader);
+      if (Number.isFinite(resetSeconds) && resetSeconds * 1000 > now) {
+        return Math.min(
+          Math.max(resetSeconds * 1000 - now + RATE_LIMIT_RESET_BUFFER_MS, RATE_LIMIT_RESET_BUFFER_MS),
+          MAX_RATE_LIMIT_BACKOFF_MS,
+        );
+      }
+
+      const retryAfter = getHeader(candidate.headers, 'retry-after');
+      if (retryAfter) {
+        const retryAfterSeconds = Number(retryAfter);
+        const retryAt = Number.isFinite(retryAfterSeconds)
+          ? now + retryAfterSeconds * 1000
+          : Date.parse(retryAfter);
+        if (Number.isFinite(retryAt)) {
+          return Math.min(
+            Math.max(retryAt - now + RATE_LIMIT_RESET_BUFFER_MS, RATE_LIMIT_RESET_BUFFER_MS),
+            MAX_RATE_LIMIT_BACKOFF_MS,
+          );
+        }
+      }
+      return DEFAULT_RATE_LIMIT_BACKOFF_MS;
+    }
+    current = candidate.cause;
+  }
+  return null;
+};
 
 export const getPermanentRecipientFailure = (error: unknown): PermanentRecipientFailure | null => {
   let current = error;
@@ -83,6 +133,26 @@ export const processQueue = async (
         });
         continue;
       }
+
+      const rateLimitBackoffMs = getRateLimitBackoffMs(error, now);
+      if (rateLimitBackoffMs !== null) {
+        const retryAt = now + rateLimitBackoffMs;
+        await deferMessage(database, item.key, item.attempts, now, retryAt);
+        await deferPendingMessagesUntil(database, retryAt);
+        logger.warn(
+          'Message delivery rate limited; queue paused',
+          {
+            recipient: item.recipient,
+            key: item.key,
+            retryAt: new Date(retryAt).toISOString(),
+            retryAfterMs: rateLimitBackoffMs,
+          },
+          error,
+        );
+        runtimeState.lastDeliveryError = error instanceof Error ? error.message : String(error);
+        break;
+      }
+
       await deferMessage(database, item.key, item.attempts, now);
       logger.error('Failed to send message; deferred for retry', { recipient: item.recipient, key: item.key }, error);
       runtimeState.lastDeliveryError = error instanceof Error ? error.message : String(error);
